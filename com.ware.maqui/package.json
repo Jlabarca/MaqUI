@@ -1,0 +1,52 @@
+{
+  "name": "com.ware.maqui",
+  "version": "0.1.0",
+  "displayName": "Maqui",
+  "description": "A reactive MVVM UI framework for Unity. Bridges OneUI components with R3-powered ViewModels and VitalRouter-based navigation.",
+  "unity": "2022.3",
+  "unityRelease": "0f1",
+  "documentationUrl": "",
+  "changelogUrl": "",
+  "licensesUrl": "",
+  "dependencies": {
+    "com.cysharp.r3": "https://github.com/Cysharp/R3.git?path=src/R3.Unity/Assets/R3.Unity",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.unity.ugui": "2.0.0",
+    "com.unity.inputsystem": "1.17.0"
+  },
+  "keywords": [
+    "ui",
+    "mvvm",
+    "reactive",
+    "framework",
+    "r3",
+    "vitalrouter"
+  ],
+  "author": {
+    "name": "ware",
+    "email": "",
+    "url": ""
+  },
+  "samples": [
+    {
+      "displayName": "Welcome",
+      "description": "A minimal Hello World scene demonstrating Maqui routing and MVVM basics.",
+      "path": "Samples~/Welcome"
+    },
+    {
+      "displayName": "Grand Tour",
+      "description": "A multi-screen showcase demonstrating navigation, theming, and reactive bindings.",
+      "path": "Samples~/GrandTour"
+    },
+    {
+      "displayName": "Shark Suite",
+      "description": "An inventory/item list demo showing reactive lists and detail views.",
+      "path": "Samples~/SharkSuite"
+    },
+    {
+      "displayName": "Modernization",
+      "description": "A before/after demo showing how to migrate existing OneUI views to the Maqui MVVM pattern.",
+      "path": "Samples~/Modernization"
+    }
+  ]
+}

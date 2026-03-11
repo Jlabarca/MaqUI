@@ -1,0 +1,17 @@
+{
+    "name": "Maqui.Samples.SharkSuite",
+    "rootNamespace": "Maqui.Samples.SharkSuite",
+    "references": [
+        "Maqui.Runtime",
+        "UIFramework"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
