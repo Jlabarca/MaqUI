@@ -28,8 +28,8 @@ R3-powered ViewModels · VitalRouter command routing · Layer-based window manag
 | **Unity** | 2022.3 LTS+ | — |
 | **R3** | latest | Git UPM (see below) |
 | **UniTask** | latest | Git UPM (see below) |
-| **VitalRouter** | 2.0.5+ | NuGetForUnity |
-| **VitalRouter.R3** | 2.0.5+ | NuGetForUnity |
+| **VitalRouter** | 2.2.0+ | Git UPM (see below) |
+| **VitalRouter.R3** | 2.2.0+ | NuGetForUnity (see below) |
 | **OneUI** (UIFramework + EventFramework) | — | Manual — see note below |
 
 > **OneUI note**: `UIFramework` and `EventFramework` (DevsDaddy) must be present in your project's `Assets/` folder as `Maqui.Runtime.asmdef` references them by name. They are not bundled with this package.
@@ -47,7 +47,8 @@ Add to your project's `Packages/manifest.json`:
   "dependencies": {
     "com.ware.maqui": "file:../../com.ware.maqui",
     "com.cysharp.r3": "https://github.com/Cysharp/R3.git?path=src/R3.Unity/Assets/R3.Unity",
-    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask"
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.hadashia.vitalrouter": "https://github.com/hadashiA/VitalRouter.git?path=/src/VitalRouter.Unity/Assets/VitalRouter#2.2.0"
   },
   "testables": ["com.ware.maqui"]
 }
@@ -60,15 +61,22 @@ Add to your project's `Packages/manifest.json`:
   "dependencies": {
     "com.ware.maqui": "https://github.com/waremoto/maqui.git",
     "com.cysharp.r3": "https://github.com/Cysharp/R3.git?path=src/R3.Unity/Assets/R3.Unity",
-    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask"
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.hadashia.vitalrouter": "https://github.com/hadashiA/VitalRouter.git?path=/src/VitalRouter.Unity/Assets/VitalRouter#2.2.0"
   }
 }
 ```
 
-### VitalRouter via NuGetForUnity
+### VitalRouter Unity package (Git UPM)
+
+VitalRouter's core Unity integration is installed via Git URL above. It includes the Roslyn source generator for `[Routes]` / `[Subscribe]` and all runtime types.
+
+### VitalRouter.R3 via NuGetForUnity
+
+`VitalRouter.R3` (UniTask + R3 bridge for VitalRouter) is distributed via NuGet only:
 
 1. Install [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) in your project.
-2. Install `VitalRouter` and `VitalRouter.R3` from the NuGet window.
+2. Open **NuGet → Manage NuGet Packages** and install `VitalRouter.R3`.
 
 ---
 

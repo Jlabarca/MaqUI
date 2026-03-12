@@ -48,13 +48,38 @@ namespace Maqui.Core.Bridge
 
     /// <summary>
     /// Default implementation using Unity's Legacy Input Manager.
+    /// Falls back gracefully if Input System package is active.
     /// </summary>
     public class LegacyInputProvider : IInputProvider
     {
-        public float GetAxis(string axisName) => Input.GetAxis(axisName);
-        public bool GetButton(string buttonName) => Input.GetButton(buttonName);
-        public bool GetButtonDown(string buttonName) => Input.GetButtonDown(buttonName);
-        public bool GetButtonUp(string buttonName) => Input.GetButtonUp(buttonName);
-        public Vector2 GetPointerPosition() => Input.mousePosition;
+        public float GetAxis(string axisName)
+        {
+            try { return Input.GetAxis(axisName); }
+            catch (System.InvalidOperationException) { return 0f; }
+        }
+
+        public bool GetButton(string buttonName)
+        {
+            try { return Input.GetButton(buttonName); }
+            catch (System.InvalidOperationException) { return false; }
+        }
+
+        public bool GetButtonDown(string buttonName)
+        {
+            try { return Input.GetButtonDown(buttonName); }
+            catch (System.InvalidOperationException) { return false; }
+        }
+
+        public bool GetButtonUp(string buttonName)
+        {
+            try { return Input.GetButtonUp(buttonName); }
+            catch (System.InvalidOperationException) { return false; }
+        }
+
+        public Vector2 GetPointerPosition()
+        {
+            try { return Input.mousePosition; }
+            catch (System.InvalidOperationException) { return Vector2.zero; }
+        }
     }
 }

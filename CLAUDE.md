@@ -243,23 +243,25 @@ await Router.Default.UnfilterAsync<T>();            // always unregister in OnDe
 
 ### Window subscriptions (direct intent)
 ```csharp
-// [Routes] + [Subscribe] — for windows reacting to their own open/close commands
-[Routes(CommandOrdering.Sequential)]
+// [Routes] + [Route] — for windows reacting to their own open/close commands
+[Routes]
 public partial class InventoryWindow : ReactiveBaseView<InventoryViewModel>
 {
-    private void Start() => Router.Default.Subscribe(this).AddTo(this);
+    private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
 
-    [Subscribe]
+    [Route]
     public async UniTask On(OpenInventoryCommand cmd, CancellationToken ct)
     {
         await AnimationBridge.Instance.FadeAsync(GetComponent<CanvasGroup>(), 1f, 0.2f, ct);
     }
 
-    [Subscribe]
+    [Route]
     public void On(CloseInventoryCommand cmd) => HideView();
 }
 ```
-**Rule**: Use `ICommandInterceptor` for cross-cutting concerns (logging, auth). Use `[Subscribe]` on windows for their own show/hide intent.
+**Rule**: Use `ICommandInterceptor` for cross-cutting concerns (logging, auth). Use `[Route]` on windows for their own show/hide intent.
+
+**Note on VitalRouter attribute naming**: VitalRouter 2.x uses `[Route]` (not `[Subscribe]`) on handler methods. The wire-up call is `this.MapTo(Router.Default).AddTo(destroyCancellationToken)` (not `Router.Default.Subscribe(this)`). `PublishAsync` returns `ValueTask` — use `_ = Router.Default.PublishAsync(...)` for fire-and-forget, not `.Forget()`.
 
 ---
 
@@ -294,7 +296,7 @@ MaquiAssetProviderBridge.SetProvider(new YooAssetMaquiProvider());
 | `UniTask` | Git UPM `com.cysharp.unitask` |
 | `R3.Unity` | Git UPM `com.cysharp.r3` |
 | `Unity.TextMeshPro` | Built-in |
-| `VitalRouter` (implicit) | NuGet `Assets/Packages/VitalRouter.2.0.5/` |
+| `VitalRouter` (implicit) | NuGet `Assets/Packages/VitalRouter.2.0.5/` — DLLs replaced with 2.2.0 to match UPM `jp.hadashikick.vitalrouter.unity@2.2.0` |
 
 ### Sandbox-only (not in package)
 Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes, LokoSolo.PinchableScrollRect, Modular Game UI Kit
@@ -308,7 +310,7 @@ Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes
 2. `[Routes] public partial class MyView : ReactiveBaseView<MyViewModel>` — bind in `OnBind()` only
 3. Prefab root needs `CanvasGroup`; no `Canvas` component needed (parented to layer canvas)
 4. Open: `HF.Get<IUIService>().ShowWindowAsync<MyView, MyViewModel>("key", UILayer.Default, vm, ct)`
-5. Close: `handle.Dispose()` or via `[Subscribe]` on a close command
+5. Close: `handle.Dispose()` or via `[Route]` on a close command
 
 ### New window (simple, Resources-based)
 `MaquiNavigator.NavigateReactive<MyView, MyViewModel>("Views/MyView")`
@@ -316,8 +318,8 @@ Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes
 ### New command flow
 ```csharp
 public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Shared.Contracts
-// Publish: Router.Default.PublishAsync(new OpenMyPanelCommand()).Forget();
-// Subscribe in window: [Subscribe] public void On(OpenMyPanelCommand cmd) { ... }
+// Publish: _ = Router.Default.PublishAsync(new OpenMyPanelCommand());
+// Subscribe in window: [Route] public void On(OpenMyPanelCommand cmd) { ... }
 ```
 
 ### Theme-aware component
@@ -334,7 +336,7 @@ public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Share
 | `using UnityEngine` in ViewModel | Breaks testability | Pass primitives; resolve refs in View |
 | Reading `.Value` in `OnBind()` | Unnecessary — R3 emits immediately on subscribe | Just subscribe |
 | `FindObjectOfType<MyView>()` | O(n), brittle | Communicate via VitalRouter commands |
-| `GetComponent<CanvasGroup>().alpha = 0` directly | Bypasses freeze state and lifecycle | Use `handle.Hide()` or `[Subscribe]` + AnimationBridge |
+| `GetComponent<CanvasGroup>().alpha = 0` directly | Bypasses freeze state and lifecycle | Use `handle.Hide()` or `[Route]` + AnimationBridge |
 | Registering interceptors in `CoreBootstrap` | Couples package to app code | Register in scene's `Start()`, unregister in `OnDestroy()` |
 | Forgetting `.AddTo(Disposables)` | Subscription leak | Always chain |
 | Forgetting `UnfilterAsync` in `OnDestroy` | Phantom interceptor | Always pair `AddFilter` → `UnfilterAsync` |
@@ -357,7 +359,7 @@ public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Share
 - `01-architecture.md` — layer model, class hierarchy, bootstrap, data flow
 - `02-quick-start.md` — first screen in 15 min
 - `03-core-concepts.md` — ViewModel, ReactiveBaseView, R3 patterns, ThemeProvider
-- `04-routing-commands.md` — VitalRouter, interceptors, `[Subscribe]`, async pipeline
+- `04-routing-commands.md` — VitalRouter, interceptors, `[Route]`, async pipeline
 - `05-theming.md` — ThemeData, SetTheme, ThemeSubscriber
 - `06-animation-transitions.md` — AnimationBridge, UniTask, DisplayOptions
 - `07-hybrid-rendering.md` — uGUI vs UI Toolkit decision matrix
