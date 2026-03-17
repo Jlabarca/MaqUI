@@ -2,8 +2,6 @@
     "name": "Maqui.Runtime",
     "rootNamespace": "Maqui",
     "references": [
-        "UIFramework",
-        "EventFramework",
         "UniTask",
         "Unity.TextMeshPro",
         "R3.Unity"

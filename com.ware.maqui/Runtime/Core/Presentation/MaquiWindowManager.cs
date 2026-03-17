@@ -12,13 +12,12 @@ namespace Maqui.Core.Presentation
     /// <summary>
     /// Core window management system for Maqui.
     /// Owns four persistent Canvas layers and manages window lifecycle, modal masking,
-    /// and freeze propagation. Implements IUIService for HybridFrame service locator integration.
+    /// freeze propagation, and optional per-asset-key object pooling.
+    /// Implements IUIService for HybridFrame service locator integration.
     /// Created by CoreBootstrap — do not add to a scene manually.
     /// </summary>
     public class MaquiWindowManager : MonoBehaviour, IUIService
     {
-        public static MaquiWindowManager Instance { get; private set; }
-
         private readonly Dictionary<UILayer, Canvas> _layerCanvases = new();
         private Canvas _modalMaskCanvas;
         private int _modalCount;
@@ -29,16 +28,23 @@ namespace Maqui.Core.Presentation
         // Per-plugin handle tracking for cleanup-on-unload
         private readonly Dictionary<string, List<IWindowHandle>> _pluginHandles = new();
 
+        // Window object pool
+        private readonly WindowPool _pool = new();
+
+        /// <inheritdoc/>
+        public event Action<WindowLoadFailedEvent> WindowLoadFailed;
+
+        /// <summary>True when at least one Modal window is open.</summary>
+        internal bool IsModalActive => _modalCount > 0;
+
         private void Awake()
         {
-            if (Instance != null)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            Instance = this;
             BuildLayerCanvases();
+        }
+
+        private void OnDestroy()
+        {
+            _pool.DrainAll();
         }
 
         // ── Layer Canvas Construction ──────────────────────────────────────────
@@ -106,7 +112,7 @@ namespace Maqui.Core.Presentation
             go.SetActive(false);  // starts hidden
         }
 
-        // ── IUIService ─────────────────────────────────────────────────────────
+        // ── IUIService — non-pooled overloads (backward compatible) ───────────
 
         public async UniTask<IWindowHandle> ShowWindowAsync<TView, TViewModel>(
             string assetKey,
@@ -118,10 +124,10 @@ namespace Maqui.Core.Presentation
         {
             var vm = new TViewModel();
             configure?.Invoke(vm);
-            return await ShowWindowAsync<TView, TViewModel>(assetKey, layer, vm, ct);
+            return await ShowWindowAsync<TView, TViewModel>(assetKey, layer, vm, WindowOptions.Default, ct);
         }
 
-        public async UniTask<IWindowHandle> ShowWindowAsync<TView, TViewModel>(
+        public UniTask<IWindowHandle> ShowWindowAsync<TView, TViewModel>(
             string assetKey,
             UILayer layer,
             TViewModel viewModel,
@@ -129,9 +135,105 @@ namespace Maqui.Core.Presentation
             where TView : ReactiveBaseView<TViewModel>
             where TViewModel : ViewModel
         {
-            var prefab = await MaquiAssetProviderBridge.Current.LoadPrefabAsync(assetKey, ct);
+            return ShowWindowAsync<TView, TViewModel>(assetKey, layer, viewModel, WindowOptions.Default, ct);
+        }
+
+        // ── IUIService — pooled overloads ─────────────────────────────────────
+
+        public async UniTask<IWindowHandle> ShowWindowAsync<TView, TViewModel>(
+            string assetKey,
+            UILayer layer,
+            Action<TViewModel> configure,
+            WindowOptions options,
+            CancellationToken ct = default)
+            where TView : ReactiveBaseView<TViewModel>
+            where TViewModel : ViewModel, new()
+        {
+            var vm = new TViewModel();
+            configure?.Invoke(vm);
+            return await ShowWindowAsync<TView, TViewModel>(assetKey, layer, vm, options, ct);
+        }
+
+        public async UniTask<IWindowHandle> ShowWindowAsync<TView, TViewModel>(
+            string assetKey,
+            UILayer layer,
+            TViewModel viewModel,
+            WindowOptions options,
+            CancellationToken ct = default)
+            where TView : ReactiveBaseView<TViewModel>
+            where TViewModel : ViewModel
+        {
+            if (string.IsNullOrEmpty(assetKey))
+            {
+                var reason = "ShowWindowAsync called with null or empty assetKey.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return null;
+            }
+
+            // ── Pool hit path ────────────────────────────────────────────────
+            if (options.Pooled && _pool.TryGet(assetKey, out var pooledGo))
+            {
+                _pool.EnsureMaxSize(assetKey, options.MaxPoolSize);
+
+                pooledGo.SetActive(true);
+                var pooledView = pooledGo.GetComponent<TView>();
+
+                try
+                {
+                    await pooledView.InvokePreShowAsync(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Return to pool on cancellation rather than destroying
+                    _pool.Return(assetKey, pooledGo);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    var reason = $"OnPreShowAsync failed for pooled '{assetKey}': {ex.Message}";
+                    Debug.LogError($"[Maqui] {reason}");
+                    NotifyLoadFailed(assetKey, layer, reason, ex);
+                    _pool.Return(assetKey, pooledGo);
+                    return null;
+                }
+
+                pooledView.PrepareForReuse(viewModel);
+
+                // If a modal is currently active, freeze the newly reused view
+                if (IsModalActive && pooledView is IFreezableView fv)
+                    fv.InvokeFreeze();
+
+                var pooledHandle = new WindowHandle(pooledGo, layer, assetKey, pluginId: null, isPooled: true, this);
+                OnWindowShown(layer);
+                return pooledHandle;
+            }
+
+            // ── Normal instantiation path ────────────────────────────────────
+            if (options.Pooled)
+                _pool.EnsureMaxSize(assetKey, options.MaxPoolSize);
+
+            GameObject prefab;
+            try
+            {
+                prefab = await MaquiAssetProviderBridge.Current.LoadPrefabAsync(assetKey, ct);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                var reason = $"Failed to load asset '{assetKey}': {ex.Message}";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason, ex);
+                return null;
+            }
+
             if (prefab == null)
-                throw new InvalidOperationException($"[Maqui] Could not load prefab: '{assetKey}'");
+            {
+                var reason = $"Asset not found: '{assetKey}'. Check the key and ensure the prefab exists.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return null;
+            }
 
             ct.ThrowIfCancellationRequested();
 
@@ -141,21 +243,41 @@ namespace Maqui.Core.Presentation
             var view = go.GetComponent<TView>();
             if (view == null)
             {
+                var reason = $"Prefab '{assetKey}' missing {typeof(TView).Name} component.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
                 Destroy(go);
-                throw new InvalidOperationException(
-                    $"[Maqui] Prefab '{assetKey}' does not have a {typeof(TView).Name} component.");
+                return null;
             }
 
-            // Call OnPreShowAsync before binding — lets the view fetch async data
-            await view.InvokePreShowAsync(ct);
+            try
+            {
+                await view.InvokePreShowAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                Destroy(go);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                var reason = $"OnPreShowAsync failed for '{assetKey}': {ex.Message}";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason, ex);
+                Destroy(go);
+                return null;
+            }
+
             ct.ThrowIfCancellationRequested();
 
             view.Initialize(viewModel);
 
-            var handle = new WindowHandle(go, layer, pluginId: null, this);
+            var handle = new WindowHandle(go, layer, assetKey, pluginId: null, isPooled: options.Pooled, this);
             OnWindowShown(layer);
             return handle;
         }
+
+        // ── IUIService — ShowPrefabAsync (unchanged, no pooling) ──────────────
 
         public async UniTask<IWindowHandle> ShowPrefabAsync(
             string assetKey,
@@ -163,16 +285,42 @@ namespace Maqui.Core.Presentation
             string pluginId = null,
             CancellationToken ct = default)
         {
-            var prefab = await MaquiAssetProviderBridge.Current.LoadPrefabAsync(assetKey, ct);
+            if (string.IsNullOrEmpty(assetKey))
+            {
+                var reason = "ShowPrefabAsync called with null or empty assetKey.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return null;
+            }
+
+            GameObject prefab;
+            try
+            {
+                prefab = await MaquiAssetProviderBridge.Current.LoadPrefabAsync(assetKey, ct);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                var reason = $"Failed to load prefab '{assetKey}': {ex.Message}";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason, ex);
+                return null;
+            }
+
             if (prefab == null)
-                throw new InvalidOperationException($"[Maqui] Could not load prefab: '{assetKey}'");
+            {
+                var reason = $"Prefab not found: '{assetKey}'. Check the key and ensure the prefab exists.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return null;
+            }
 
             ct.ThrowIfCancellationRequested();
 
             var layerCanvas = _layerCanvases[layer];
             var go = Instantiate(prefab, layerCanvas.transform);
 
-            var handle = new WindowHandle(go, layer, pluginId, this);
+            var handle = new WindowHandle(go, layer, assetKey, pluginId, isPooled: false, this);
 
             if (pluginId != null)
             {
@@ -213,6 +361,25 @@ namespace Maqui.Core.Presentation
             {
                 list.Remove(handle);
             }
+
+            if (handle.IsPooled && handle.Root != null)
+            {
+                // Reset the view's subscriptions and VM before pooling
+                var view = handle.Root.GetComponent<MaquiBaseView>();
+                if (view is IPoolResetable resetable)
+                    resetable.InvokeResetForPool();
+
+                if (_pool.Return(handle.AssetKey, handle.Root))
+                {
+                    // Successfully pooled — don't destroy
+                    OnWindowHidden(handle.Layer);
+                    return;
+                }
+                // Pool at capacity — fall through to destroy
+            }
+
+            if (handle.Root != null)
+                Destroy(handle.Root);
 
             OnWindowHidden(handle.Layer);
         }
@@ -265,15 +432,22 @@ namespace Maqui.Core.Presentation
             }
         }
 
+        // ── Error notification ────────────────────────────────────────────────
+
+        private void NotifyLoadFailed(string assetKey, UILayer layer, string reason, Exception ex = null)
+        {
+            WindowLoadFailed?.Invoke(new WindowLoadFailedEvent(assetKey, layer, reason, ex));
+        }
+
         // ── View freeze registration ───────────────────────────────────────────
 
-        internal void RegisterFreezable(IFreezableView view)
+        public void RegisterFreezable(IFreezableView view)
         {
             if (!_freezableViews.Contains(view))
                 _freezableViews.Add(view);
         }
 
-        internal void UnregisterFreezable(IFreezableView view)
+        public void UnregisterFreezable(IFreezableView view)
         {
             _freezableViews.Remove(view);
         }
@@ -287,16 +461,20 @@ namespace Maqui.Core.Presentation
         private bool _disposed;
 
         internal string PluginId { get; }
+        internal string AssetKey { get; }
+        internal bool IsPooled { get; }
 
         public UILayer Layer { get; }
         public GameObject Root { get; }
         public bool IsVisible => Root != null && Root.activeSelf;
 
-        public WindowHandle(GameObject root, UILayer layer, string pluginId, MaquiWindowManager manager)
+        public WindowHandle(GameObject root, UILayer layer, string assetKey, string pluginId, bool isPooled, MaquiWindowManager manager)
         {
             Root     = root;
             Layer    = layer;
+            AssetKey = assetKey;
             PluginId = pluginId;
+            IsPooled = isPooled;
             _manager = manager;
         }
 
@@ -314,7 +492,6 @@ namespace Maqui.Core.Presentation
         {
             if (_disposed) return;
             _disposed = true;
-            if (Root) UnityEngine.Object.Destroy(Root);
             _manager.OnHandleDisposed(this);
         }
     }
@@ -325,9 +502,18 @@ namespace Maqui.Core.Presentation
     /// Internal interface implemented by ReactiveBaseView to receive freeze notifications
     /// from MaquiWindowManager without creating a hard generic dependency.
     /// </summary>
-    internal interface IFreezableView
+    public interface IFreezableView
     {
         void InvokeFreeze();
         void InvokeUnfreeze();
+    }
+
+    /// <summary>
+    /// Internal interface for pool reset. Implemented by ReactiveBaseView.
+    /// Allows MaquiWindowManager to reset a view without knowing its generic type.
+    /// </summary>
+    internal interface IPoolResetable
+    {
+        void InvokeResetForPool();
     }
 }

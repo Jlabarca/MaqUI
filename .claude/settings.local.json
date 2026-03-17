@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "mcp__unityMCP__set_active_instance"
+      "mcp__unityMCP__set_active_instance",
+      "mcp__unityMCP__refresh_unity",
+      "Bash(ls d:/ware/MaqUI/com.ware.maqui/Tests/Runtime/*.meta)"
     ]
   }
 }

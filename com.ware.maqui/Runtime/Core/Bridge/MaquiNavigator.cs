@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using DevsDaddy.Shared.UIFramework;
-using DevsDaddy.Shared.UIFramework.Core;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Maqui.Core.Logic;
 using Maqui.Core.Presentation;
 using UnityEngine;
@@ -9,22 +9,55 @@ using UnityEngine;
 namespace Maqui.Core.Bridge
 {
     /// <summary>
-    /// Advanced Navigator for Maqui.
-    /// Handles the instantiation of Reactive Views and their corresponding ViewModels.
+    /// Simple navigator for Maqui (legacy API — prefer IUIService for new code).
+    /// Loads views via IMaquiAssetProvider and manages ViewModel lifecycle.
     /// </summary>
     public static class MaquiNavigator
     {
         private static readonly Dictionary<Type, ViewModel> _activeViewModels = new();
+        private static MaquiBaseView _currentView;
 
         /// <summary>
         /// Navigates to a Reactive View, automatically creating its ViewModel.
+        /// Uses the configured IMaquiAssetProvider for loading.
         /// </summary>
-        public static void NavigateReactive<TView, TViewModel>(string resourcePath, Action<TView> onComplete = null)
+        public static void NavigateReactive<TView, TViewModel>(
+            string resourcePath,
+            Action<TView> onComplete = null,
+            CancellationToken ct = default)
             where TView : ReactiveBaseView<TViewModel>
             where TViewModel : ViewModel, new()
         {
-            UIFramework.LoadViewFromResources<TView>(resourcePath, false, view =>
+            NavigateReactiveAsync<TView, TViewModel>(resourcePath, onComplete, ct).Forget();
+        }
+
+        private static async UniTaskVoid NavigateReactiveAsync<TView, TViewModel>(
+            string resourcePath,
+            Action<TView> onComplete,
+            CancellationToken ct)
+            where TView : ReactiveBaseView<TViewModel>
+            where TViewModel : ViewModel, new()
+        {
+            try
             {
+                var prefab = await MaquiAssetProviderBridge.Current.LoadPrefabAsync(resourcePath, ct);
+                if (prefab == null)
+                {
+                    Debug.LogError($"[Maqui] Navigation failed: could not load '{resourcePath}'");
+                    return;
+                }
+
+                ct.ThrowIfCancellationRequested();
+
+                var go = UnityEngine.Object.Instantiate(prefab);
+                var view = go.GetComponent<TView>();
+                if (view == null)
+                {
+                    Debug.LogError($"[Maqui] Navigation failed: prefab '{resourcePath}' does not have {typeof(TView).Name}");
+                    UnityEngine.Object.Destroy(go);
+                    return;
+                }
+
                 // Create or reuse ViewModel
                 if (!_activeViewModels.TryGetValue(typeof(TViewModel), out var viewModel))
                 {
@@ -32,17 +65,22 @@ namespace Maqui.Core.Bridge
                     _activeViewModels.Add(typeof(TViewModel), viewModel);
                 }
 
-                // Initialize View with ViewModel
                 view.Initialize((TViewModel)viewModel);
 
-                // Perform OneUI Navigation
-                UIFramework.Navigate(view);
+                // Hide previous, show new
+                if (_currentView != null)
+                    _currentView.HideView();
+
+                _currentView = view;
+                view.ShowView();
 
                 onComplete?.Invoke(view);
-            }, error =>
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
             {
-                Debug.LogError($"[Maqui] Navigation failed: {error}");
-            });
+                Debug.LogError($"[Maqui] Navigation failed: {ex.Message}");
+            }
         }
 
         /// <summary>

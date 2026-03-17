@@ -18,14 +18,14 @@ namespace Maqui.Core
             var coreObj = new GameObject("Maqui_Core");
             Object.DontDestroyOnLoad(coreObj);
 
-            // Core bridges
-            coreObj.AddComponent<InputBridge>();
-            coreObj.AddComponent<RouterBridge>();
-            coreObj.AddComponent<ThemeProvider>();
-            coreObj.AddComponent<AnimationBridge>();
+            // Core bridges — registered into MaquiServices for testable access
+            MaquiServices.Register<IInputBridge>(coreObj.AddComponent<InputBridge>());
+            MaquiServices.Register<IRouterBridge>(coreObj.AddComponent<RouterBridge>());
+            MaquiServices.Register<IThemeProvider>(coreObj.AddComponent<ThemeProvider>());
+            MaquiServices.Register<IAnimationBridge>(coreObj.AddComponent<AnimationBridge>());
 
             // Window system — builds 4 layer canvases + modal mask immediately on AddComponent
-            coreObj.AddComponent<MaquiWindowManager>();
+            MaquiServices.Register<IUIService>(coreObj.AddComponent<MaquiWindowManager>());
 
             Debug.Log("[Maqui] Core Foundation Ready.");
         }

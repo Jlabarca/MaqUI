@@ -7,26 +7,11 @@ using UnityEngine.UI;
 namespace Maqui.Core.Bridge
 {
     /// <summary>
-    /// Modern Animation Bridge for Maqui.
-    /// Replaces legacy coroutines with UniTask-based animations.
+    /// UniTask-based animation bridge for Maqui.
+    /// Registered into MaquiServices as IAnimationBridge by CoreBootstrap.
     /// </summary>
-    public class AnimationBridge : MonoBehaviour
+    public class AnimationBridge : MonoBehaviour, IAnimationBridge
     {
-        public static AnimationBridge Instance { get; private set; }
-
-        private void Awake()
-        {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
-        }
-
         /// <summary>
         /// Fades a CanvasGroup to a target alpha.
         /// </summary>

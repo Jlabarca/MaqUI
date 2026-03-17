@@ -1,7 +1,7 @@
 # CLAUDE.md — Maqui Project Context
 
 > AI session context for `D:\ware\MaqUI\`. Read this first, always.
-> Last updated to reflect: MaquiWindowManager, IUIService, UILayer, IWindowHandle, IMaquiAssetProvider.
+> Last updated to reflect: Singletons removed, MaquiServices service locator added, MaquiBaseView added, ReactiveList\<T\> reactive collections, WindowLoadFailed error event, window object pooling, expanded test coverage.
 
 ---
 
@@ -24,34 +24,45 @@ D:\ware\MaqUI\
 ├── com.ware.maqui\              ← THE PACKAGE (source of truth)
 │   ├── package.json             v0.1.0
 │   ├── Runtime\
-│   │   ├── Maqui.Runtime.asmdef refs: UIFramework, EventFramework, UniTask, R3.Unity, TMP
+│   │   ├── Maqui.Runtime.asmdef refs: UniTask, R3.Unity, TMP
 │   │   └── Core\
 │   │       ├── CoreBootstrap.cs         [RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]
+│   │       ├── MaquiServices.cs        static service locator (Register/Get/Reset)
 │   │       ├── Bridge\
 │   │       │   ├── AnimationBridge.cs   FadeAsync, ScaleAsync, SceneTransitionAsync
+│   │       │   ├── IAnimationBridge.cs  interface for AnimationBridge
 │   │       │   ├── InputBridge.cs       IInputProvider, LegacyInputProvider
-│   │       │   ├── RouterBridge.cs      Router.Default singleton MonoBehaviour
+│   │       │   ├── IInputBridge.cs      interface for InputBridge
+│   │       │   ├── RouterBridge.cs      Router wrapper MonoBehaviour
+│   │       │   ├── IRouterBridge.cs     interface for RouterBridge
 │   │       │   ├── ThemeProvider.cs     ReactiveProperty<ThemeData>, SetTheme()
+│   │       │   ├── IThemeProvider.cs    interface for ThemeProvider
 │   │       │   ├── MaquiNavigator.cs    NavigateReactive<TView,TVM>() — Resources-based
 │   │       │   ├── IMaquiAssetProvider.cs   contract for window loading
 │   │       │   └── IInputProvider.cs
 │   │       ├── Logic\
 │   │       │   ├── ViewModel.cs         abstract base, CompositeDisposable, Initialize/Dispose
+│   │       │   ├── ReactiveList.cs      granular add/remove/replace/reset reactive collection
 │   │       │   ├── ThemeData.cs         ScriptableObject, 13 color slots, GetColor()
 │   │       │   └── ThemeColorType.cs    enum (13 values)
 │   │       └── Presentation\
-│   │           ├── ReactiveBaseView<T>.cs   base view, IFreezableView, OnBind/OnFreeze hooks
-│   │           ├── MaquiWindowManager.cs    4-layer Canvas, freeze, modal mask, IUIService impl
-│   │           ├── IUIService.cs            ShowWindowAsync, ShowPrefabAsync, CleanupPlugin
+│   │           ├── MaquiBaseView.cs         self-contained base (replaces OneUI BaseView)
+│   │           ├── ReactiveBaseView<T>.cs   extends MaquiBaseView, typed VM, OnBind/OnFreeze
+│   │           ├── MaquiWindowManager.cs    4-layer Canvas, freeze, modal mask, pooling, IUIService
+│   │           ├── IUIService.cs            ShowWindowAsync, ShowPrefabAsync, WindowLoadFailed
 │   │           ├── IWindowHandle.cs         Show, Hide, Dispose, IsVisible, Layer, Root
 │   │           ├── UILayer.cs               enum: Background=0, Default=100, Overlay=200, Modal=300
+│   │           ├── WindowOptions.cs         opt-in pooling config (Pooled, MaxPoolSize)
+│   │           ├── WindowPool.cs            internal per-asset-key Stack<GO> pool
 │   │           ├── ThemeSubscriber.cs
 │   │           ├── ThemeImageSubscriber.cs
 │   │           └── ThemeTextSubscriber.cs
 │   ├── Editor\
 │   │   └── Maqui.Editor.asmdef
 │   ├── Tests\
-│   │   ├── Runtime\   ViewModelTests.cs, ThemeDataTests.cs
+│   │   ├── Runtime\   ViewModelTests, ThemeDataTests, MaquiBaseViewTests,
+│   │   │              ReactiveBaseViewTests, MaquiWindowManagerTests,
+│   │   │              ReactiveListTests
 │   │   └── Editor\    MaquiEditorTests.cs
 │   └── Samples~\
 │       ├── Welcome\       minimal routing + MVVM demo
@@ -80,22 +91,24 @@ D:\ware\MaqUI\
 ```
 Logic Layer      ViewModel          Pure C#, no UnityEngine refs, R3 reactive state
 Bridge Layer     MonoBehaviour      InputBridge, RouterBridge, ThemeProvider,
-                 singletons         AnimationBridge, MaquiWindowManager
-Presentation     ReactiveBaseView<T> Extends OneUI BaseView, typed VM binding,
+                 services           AnimationBridge, MaquiWindowManager
+                                    All registered in MaquiServices via interfaces
+Presentation     ReactiveBaseView<T> Extends MaquiBaseView, typed VM binding,
                                     layer-aware, freeze-aware
 ```
 
 ### Zero-Config Bootstrap
 
 `CoreBootstrap.[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]` creates `Maqui_Core`
-DontDestroyOnLoad and attaches (in order):
-1. `InputBridge`
-2. `RouterBridge`
-3. `ThemeProvider`
-4. `AnimationBridge`
-5. `MaquiWindowManager` — immediately builds 4 layer canvases + modal mask
+DontDestroyOnLoad and attaches (in order), registering each into `MaquiServices`:
+1. `InputBridge` → `MaquiServices.Register<IInputBridge>(...)`
+2. `RouterBridge` → `MaquiServices.Register<IRouterBridge>(...)`
+3. `ThemeProvider` → `MaquiServices.Register<IThemeProvider>(...)`
+4. `AnimationBridge` → `MaquiServices.Register<IAnimationBridge>(...)`
+5. `MaquiWindowManager` → `MaquiServices.Register<IUIService>(...)` — immediately builds 4 layer canvases + modal mask
 
 **No scene setup, no prefab, no Awake ordering required.**
+**No singletons — all services accessed via `MaquiServices.Get<T>()`.**
 
 ---
 
@@ -103,8 +116,8 @@ DontDestroyOnLoad and attaches (in order):
 
 | Namespace | Assembly | Contents |
 |:---|:---|:---|
-| `Maqui.Core` | `Maqui.Runtime` | `CoreBootstrap` |
-| `Maqui.Core.Bridge` | `Maqui.Runtime` | `AnimationBridge`, `InputBridge`, `RouterBridge`, `ThemeProvider`, `MaquiNavigator`, `IInputProvider`, `IMaquiAssetProvider`, `MaquiAssetProviderBridge`, `ResourcesAssetProvider` |
+| `Maqui.Core` | `Maqui.Runtime` | `CoreBootstrap`, `MaquiServices` |
+| `Maqui.Core.Bridge` | `Maqui.Runtime` | `AnimationBridge`/`IAnimationBridge`, `InputBridge`/`IInputBridge`, `RouterBridge`/`IRouterBridge`, `ThemeProvider`/`IThemeProvider`, `MaquiNavigator`, `IInputProvider`, `IMaquiAssetProvider`, `MaquiAssetProviderBridge`, `ResourcesAssetProvider` |
 | `Maqui.Core.Logic` | `Maqui.Runtime` | `ViewModel`, `ThemeData`, `ThemeColorType` |
 | `Maqui.Core.Presentation` | `Maqui.Runtime` | `ReactiveBaseView<T>`, `MaquiWindowManager`, `IUIService`, `IWindowHandle`, `UILayer`, `ThemeSubscriber`, `ThemeImageSubscriber`, `ThemeTextSubscriber` |
 | `Maqui.Samples.*` | per-sample asmdef | 4 sample assemblies |
@@ -112,6 +125,15 @@ DontDestroyOnLoad and attaches (in order):
 ---
 
 ## Key APIs
+
+### MaquiServices
+```csharp
+// Maqui.Core — static service locator, replaces all singletons
+MaquiServices.Register<IInputBridge>(bridge);      // called by CoreBootstrap
+MaquiServices.Get<IInputBridge>();                  // returns registered instance or null
+MaquiServices.Get<IThemeProvider>()?.SetTheme(t);   // null-safe access pattern
+MaquiServices.Reset();                             // test isolation — clears all registrations
+```
 
 ### ViewModel
 ```csharp
@@ -124,10 +146,44 @@ public abstract class ViewModel : IDisposable
 }
 ```
 
+### ReactiveList\<T\>
+```csharp
+// Maqui.Core.Logic — granular reactive collection (lightweight alternative to ObservableCollections)
+public sealed class ReactiveList<T> : IReadOnlyList<T>, IDisposable
+{
+    // Construction
+    public ReactiveList();
+    public ReactiveList(IEnumerable<T> initial);
+
+    // Observables — subscribe for granular change notifications
+    public Observable<ListAddEvent<T>> ObserveAdd();
+    public Observable<ListRemoveEvent<T>> ObserveRemove();
+    public Observable<ListReplaceEvent<T>> ObserveReplace();
+    public Observable<Unit> ObserveReset();                    // emits on Clear()
+    public ReadOnlyReactiveProperty<int> ObserveCountChanged();
+
+    // Mutations — each emits the corresponding observable
+    public void Add(T item);
+    public void Insert(int index, T item);
+    public bool Remove(T item);
+    public void RemoveAt(int index);
+    public void Clear();
+    public void AddRange(IEnumerable<T> items);
+    public void Move(int oldIndex, int newIndex);  // emits Remove + Add
+    public T this[int index] { get; set; }         // set emits Replace
+}
+
+// Event structs: ListAddEvent<T>(Index, Item), ListRemoveEvent<T>(Index, Item),
+//                ListReplaceEvent<T>(Index, OldItem, NewItem)
+```
+
+**Use `ReactiveList<T>` instead of `ReactiveProperty<IReadOnlyList<T>>`** when the view needs
+incremental updates (add/remove/replace rows) rather than full-list rebuilds.
+
 ### ReactiveBaseView\<T\>
 ```csharp
-// Maqui.Core.Presentation — inherits BaseView (OneUI), implements IFreezableView
-public abstract class ReactiveBaseView<T> : BaseView, IFreezableView where T : ViewModel
+// Maqui.Core.Presentation — inherits MaquiBaseView (self-contained), implements IFreezableView
+public abstract class ReactiveBaseView<T> : MaquiBaseView, IFreezableView where T : ViewModel
 {
     protected T ViewModel { get; private set; }
     protected readonly CompositeDisposable Disposables = new();
@@ -139,16 +195,17 @@ public abstract class ReactiveBaseView<T> : BaseView, IFreezableView where T : V
     protected virtual void OnPreHide();                              // before hide sequence
     protected virtual void OnFreeze();                               // Modal opened → disable input
     protected virtual void OnUnfreeze();                             // Modal closed → restore input
+    protected virtual void OnReset();                                // pooled view returning to pool
 
     public override void OnViewDestroy();               // disposes Disposables + ViewModel
 }
 ```
-`OnViewAwake()` auto-registers with `MaquiWindowManager` for freeze notifications.
+`OnViewAwake()` auto-registers with `MaquiServices.Get<IUIService>()` for freeze notifications.
 
 ### MaquiWindowManager (IUIService)
 ```csharp
-// Maqui.Core.Presentation — MonoBehaviour singleton, implements IUIService
-// Created by CoreBootstrap, do NOT add manually
+// Maqui.Core.Presentation — MonoBehaviour, implements IUIService
+// Created by CoreBootstrap, registered as MaquiServices.Register<IUIService>(...), do NOT add manually
 
 // Load prefab from assetKey, instantiate in layer, run OnPreShowAsync, then Initialize(vm)
 UniTask<IWindowHandle> ShowWindowAsync<TView, TVM>(string assetKey, UILayer layer, TVM viewModel, CancellationToken ct);
@@ -160,7 +217,46 @@ UniTask<IWindowHandle> ShowPrefabAsync(string assetKey, UILayer layer, string pl
 void CleanupPlugin(string pluginId);
 // Returns the root Canvas for a layer (for manual parenting)
 Canvas GetLayerCanvas(UILayer layer);
+
+// Fired when any Show*Async fails (missing asset, wrong component, provider exception, etc.)
+event Action<WindowLoadFailedEvent> WindowLoadFailed;
 ```
+
+#### Error handling
+All `Show*Async` methods:
+- Return `null` (not throw) on failure, with `[Maqui]`-prefixed `Debug.LogError`
+- Fire `WindowLoadFailed` event with `assetKey`, `layer`, `reason`, and optional `Exception`
+- Re-throw `OperationCanceledException` (cancellation is not a failure)
+- Clean up partially-instantiated GameObjects on failure
+
+Subscribe to `WindowLoadFailed` for fallback UI or retry logic:
+```csharp
+MaquiServices.Get<IUIService>().WindowLoadFailed += e =>
+    Debug.LogWarning($"Window failed: {e.AssetKey} — {e.Reason}");
+```
+
+#### Window pooling
+Opt-in per-asset-key object pool. Pooled windows are deactivated (not destroyed) on Dispose,
+and reused on the next ShowWindowAsync for the same key — skipping Instantiate and Awake.
+
+```csharp
+var opts = new WindowOptions { Pooled = true, MaxPoolSize = 2 };
+var handle = await MaquiServices.Get<IUIService>()
+    .ShowWindowAsync<MyView, MyVM>("key", UILayer.Default, vm, opts, ct);
+
+// handle.Dispose() → ResetForPool → pool.Return (deactivate, don't destroy)
+// Next ShowWindowAsync("key", ..., opts) → pool.TryGet → reuse → PrepareForReuse(newVM)
+```
+
+Pool lifecycle:
+- **First show**: normal Instantiate → Awake → OnPreShowAsync → Initialize → OnBind
+- **Dispose (pooled)**: OnPreHide → OnReset → Disposables.Dispose → VM.Dispose → UnregisterFreezable → SetActive(false)
+- **Reuse**: SetActive(true) → OnPreShowAsync → new Disposables → RegisterFreezable → VM.Initialize → OnBind
+- **Pool full on return**: falls through to Destroy (normal non-pooled cleanup)
+
+Override `OnReset()` to clear UI state that `OnBind()` doesn't explicitly set (scroll positions, input fields, etc.).
+
+**Important**: Poolable views must wire up VitalRouter in `OnBind()` + `Disposables`, not in `Start()`.
 
 ### UILayer
 ```csharp
@@ -195,17 +291,18 @@ MaquiAssetProviderBridge.SetProvider(new YooAssetMaquiProvider());
 MaquiAssetProviderBridge.Current  // → IMaquiAssetProvider
 ```
 
-### ThemeProvider
+### ThemeProvider (IThemeProvider)
 ```csharp
-ThemeProvider.Instance.SetTheme(ThemeData theme);
-ThemeProvider.Instance.CurrentTheme  // ReadOnlyReactiveProperty<ThemeData>
+MaquiServices.Get<IThemeProvider>()?.SetTheme(ThemeData theme);
+MaquiServices.Get<IThemeProvider>()?.CurrentTheme  // ReadOnlyReactiveProperty<ThemeData>
 ```
 
-### AnimationBridge
+### AnimationBridge (IAnimationBridge)
 ```csharp
-await AnimationBridge.Instance.FadeAsync(CanvasGroup cg, float alpha, float duration, CancellationToken ct);
-await AnimationBridge.Instance.ScaleAsync(RectTransform rt, Vector3 target, float duration, CancellationToken ct);
-await AnimationBridge.Instance.SceneTransitionAsync(string sceneName, float duration, Color color, CancellationToken ct);
+var anim = MaquiServices.Get<IAnimationBridge>();
+await anim.FadeAsync(CanvasGroup cg, float alpha, float duration, CancellationToken ct);
+await anim.ScaleAsync(RectTransform rt, Vector3 target, float duration, CancellationToken ct);
+await anim.SceneTransitionAsync(string sceneName, float duration, Color color, CancellationToken ct);
 ```
 
 ### MaquiNavigator (legacy — Resources-based)
@@ -238,7 +335,7 @@ Implement `OnFreeze()`/`OnUnfreeze()` for custom per-view feedback (audio mute, 
 ```csharp
 // ICommandInterceptor — for logging, auth checks, analytics, async navigation gate
 Router.Default.AddFilter(myInterceptor);           // register in Start()
-await Router.Default.UnfilterAsync<T>();            // always unregister in OnDestroy()
+Router.Default.RemoveFilter(myInterceptor);        // always unregister in OnDestroy()
 ```
 
 ### Window subscriptions (direct intent)
@@ -247,21 +344,28 @@ await Router.Default.UnfilterAsync<T>();            // always unregister in OnDe
 [Routes]
 public partial class InventoryWindow : ReactiveBaseView<InventoryViewModel>
 {
-    private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
     [Route]
     public async UniTask On(OpenInventoryCommand cmd, CancellationToken ct)
     {
-        await AnimationBridge.Instance.FadeAsync(GetComponent<CanvasGroup>(), 1f, 0.2f, ct);
+        await MaquiServices.Get<IAnimationBridge>().FadeAsync(ViewCanvasGroup, 1f, 0.2f, ct);
     }
 
     [Route]
     public void On(CloseInventoryCommand cmd) => HideView();
+
+    protected override void OnBind()
+    {
+        // Always wire routing in OnBind with Disposables — works for both pooled and non-pooled
+        this.MapTo(Router.Default).AddTo(Disposables);
+        ViewModel.Items.Subscribe(RefreshGrid).AddTo(Disposables);
+    }
 }
 ```
 **Rule**: Use `ICommandInterceptor` for cross-cutting concerns (logging, auth). Use `[Route]` on windows for their own show/hide intent.
 
-**Note on VitalRouter attribute naming**: VitalRouter 2.x uses `[Route]` (not `[Subscribe]`) on handler methods. The wire-up call is `this.MapTo(Router.Default).AddTo(destroyCancellationToken)` (not `Router.Default.Subscribe(this)`). `PublishAsync` returns `ValueTask` — use `_ = Router.Default.PublishAsync(...)` for fire-and-forget, not `.Forget()`.
+**Routing convention**: Always wire `this.MapTo(Router.Default).AddTo(Disposables)` in `OnBind()`, never in `Start()`. `Disposables` is disposed both on destroy (non-pooled) and on pool return (pooled), so this single pattern is always correct. Using `Start()` + `destroyCancellationToken` breaks pooled windows because the subscription survives pool return, causing duplicate handlers on reuse.
+
+**Note on VitalRouter**: VitalRouter 2.x uses `[Route]` (not `[Subscribe]`) on handler methods. `PublishAsync` returns `ValueTask` — use `_ = Router.Default.PublishAsync(...)` for fire-and-forget, not `.Forget()`.
 
 ---
 
@@ -272,7 +376,7 @@ HybridFrame (https://github.com/waremoto/hybridframe) uses a service locator: `H
 `MaquiWindowManager` implements `IUIService`. Register it with HF during boot:
 ```csharp
 // In ORO boot procedure (after CoreBootstrap has run):
-HF.Register<IUIService>(MaquiWindowManager.Instance);
+HF.Register<IUIService>(MaquiServices.Get<IUIService>());
 ```
 
 Plugin window creation goes through `IPluginAPI.CreateUIPanelAsync()` → `SandboxedPluginAPI` → `IUIService.ShowPrefabAsync()` with the plugin's `pluginId`.
@@ -291,15 +395,13 @@ MaquiAssetProviderBridge.SetProvider(new YooAssetMaquiProvider());
 ### Maqui.Runtime.asmdef references
 | Dep | Source |
 |:---|:---|
-| `UIFramework` (DevsDaddy.OneUI) | `CharqUI/Assets/UI/OneUI/` — sandbox only, not packaged |
-| `EventFramework` (DevsDaddy.OneUI) | same |
 | `UniTask` | Git UPM `com.cysharp.unitask` |
 | `R3.Unity` | Git UPM `com.cysharp.r3` |
 | `Unity.TextMeshPro` | Built-in |
 | `VitalRouter` (implicit) | NuGet `Assets/Packages/VitalRouter.2.0.5/` — DLLs replaced with 2.2.0 to match UPM `jp.hadashikick.vitalrouter.unity@2.2.0` |
 
 ### Sandbox-only (not in package)
-Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes, LokoSolo.PinchableScrollRect, Modular Game UI Kit
+DevsDaddy OneUI (UIFramework + EventFramework — no longer referenced by Maqui.Runtime), Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes, LokoSolo.PinchableScrollRect, Modular Game UI Kit
 
 ---
 
@@ -308,7 +410,7 @@ Le Tai TranslucentImage, Le Tai TrueShadow, Coffee.UIParticle, AwesomeAttributes
 ### New window (layer-aware)
 1. `sealed class MyViewModel : ViewModel` — no UnityEngine refs
 2. `[Routes] public partial class MyView : ReactiveBaseView<MyViewModel>` — bind in `OnBind()` only
-3. Prefab root needs `CanvasGroup`; no `Canvas` component needed (parented to layer canvas)
+3. Prefab root needs `CanvasGroup`; **must NOT have a `Canvas` component** (parented to layer canvas which owns the GraphicRaycaster — a nested Canvas without its own GraphicRaycaster silently blocks all raycasts)
 4. Open: `HF.Get<IUIService>().ShowWindowAsync<MyView, MyViewModel>("key", UILayer.Default, vm, ct)`
 5. Close: `handle.Dispose()` or via `[Route]` on a close command
 
@@ -322,10 +424,43 @@ public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Share
 // Subscribe in window: [Route] public void On(OpenMyPanelCommand cmd) { ... }
 ```
 
+### Reactive list binding (granular updates)
+```csharp
+// ViewModel — use ReactiveList instead of ReactiveProperty<IReadOnlyList<T>>
+public readonly ReactiveList<MyItem> Items = new();
+
+// View — OnBind(): build initial rows, then subscribe to granular events
+foreach (var item in ViewModel.Items) AddRow(item);
+
+ViewModel.Items.ObserveAdd()
+    .Subscribe(e => InsertRow(e.Index, e.Item)).AddTo(Disposables);
+ViewModel.Items.ObserveRemove()
+    .Subscribe(e => RemoveRow(e.Index)).AddTo(Disposables);
+ViewModel.Items.ObserveReset()
+    .Subscribe(_ => ClearRows()).AddTo(Disposables);
+ViewModel.Items.ObserveCountChanged()
+    .Subscribe(n => _countLabel.text = $"({n})").AddTo(Disposables);
+```
+
+### Poolable window
+```csharp
+// Open with pooling enabled (inventory opens/closes many times per session)
+var opts = new WindowOptions { Pooled = true, MaxPoolSize = 2 };
+_handle = await MaquiServices.Get<IUIService>()
+    .ShowWindowAsync<InventoryView, InventoryVM>("Views/Inventory", UILayer.Default, vm, opts, ct);
+
+// OnBind + Disposables already handles pool correctly — no special wiring needed.
+// Override OnReset() only if you have UI state that OnBind doesn't explicitly set.
+protected override void OnReset()
+{
+    _scrollRect.verticalNormalizedPosition = 1f;
+}
+```
+
 ### Theme-aware component
 - `ThemeImageSubscriber` / `ThemeTextSubscriber` — zero-code, assign slot in Inspector
 - `ThemeSubscriber` — extend, implement `OnThemeChanged(ThemeData)`
-- In `OnBind()`: `ThemeProvider.Instance.CurrentTheme.Subscribe(...).AddTo(Disposables)`
+- In `OnBind()`: `MaquiServices.Get<IThemeProvider>()?.CurrentTheme.Subscribe(...).AddTo(Disposables)`
 
 ---
 
@@ -339,9 +474,12 @@ public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Share
 | `GetComponent<CanvasGroup>().alpha = 0` directly | Bypasses freeze state and lifecycle | Use `handle.Hide()` or `[Route]` + AnimationBridge |
 | Registering interceptors in `CoreBootstrap` | Couples package to app code | Register in scene's `Start()`, unregister in `OnDestroy()` |
 | Forgetting `.AddTo(Disposables)` | Subscription leak | Always chain |
-| Forgetting `UnfilterAsync` in `OnDestroy` | Phantom interceptor | Always pair `AddFilter` → `UnfilterAsync` |
+| Forgetting `RemoveFilter` in `OnDestroy` | Phantom interceptor | Always pair `AddFilter` → `RemoveFilter` |
 | Cross-plugin `window.Show()` directly | Violates sandbox | Publish a command instead |
 | Disposing `IWindowHandle` more than once | Double-destroy | Guard with `_handle = null` after Dispose |
+| `ReactiveProperty<IReadOnlyList<T>>` for mutable lists | Full-list rebuild on every change | Use `ReactiveList<T>` with granular ObserveAdd/Remove |
+| `this.MapTo(Router.Default)` in `Start()` | Breaks pooled windows — subscription survives pool return, duplicate handlers on reuse | Always wire in `OnBind()` with `.AddTo(Disposables)` |
+| `Canvas` component on view prefab root | Creates nested sub-canvas without GraphicRaycaster — silently blocks ALL raycasts (clicks, drags, scrolls). No errors logged. | Remove the Canvas from the prefab. Views are parented to layer canvases which already have GraphicRaycaster. Only `CanvasGroup` + `RectTransform` needed on root. |
 
 ---
 
@@ -349,7 +487,8 @@ public readonly record struct OpenMyPanelCommand : ICommand;  // struct in Share
 
 - Run: Unity → Window → Test Runner → filter `Maqui.Tests`
 - `CharqUI/Packages/manifest.json` has `"testables": ["com.ware.maqui"]`
-- Tests: `Tests/Runtime/ViewModelTests.cs`, `Tests/Runtime/ThemeDataTests.cs`, `Tests/Editor/MaquiEditorTests.cs`
+- Tests: `Tests/Runtime/` — ViewModelTests, ThemeDataTests, MaquiBaseViewTests, ReactiveBaseViewTests, MaquiWindowManagerTests, InputBridgeTests, ThemeProviderTests, AnimationBridgeTests, ThemeSubscriberTests, CoreBootstrapTests, AssetProviderTests, ReactiveListTests, InterceptorTests; `Tests/Editor/MaquiEditorTests.cs`
+- All tests use `MaquiServices.Reset()` in setup/teardown for clean isolation
 
 ---
 

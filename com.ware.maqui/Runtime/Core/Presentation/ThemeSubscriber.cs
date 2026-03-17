@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Maqui.Core.Presentation
 {
+    using Maqui.Core;
+
     /// <summary>
     /// Base class for UI components that need to respond to global theme changes.
     /// </summary>
@@ -15,7 +17,10 @@ namespace Maqui.Core.Presentation
         protected virtual void Start()
         {
             // Subscribe to theme changes
-            ThemeProvider.Instance.CurrentTheme
+            var themeProvider = MaquiServices.Get<IThemeProvider>();
+            if (themeProvider == null) return;
+
+            themeProvider.CurrentTheme
                 .Where(t => t != null)
                 .Subscribe(OnThemeChanged)
                 .AddTo(ThemeDisposables);

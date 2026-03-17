@@ -7,11 +7,10 @@ namespace Maqui.Core.Bridge
     /// <summary>
     /// Global Theme Provider for Maqui.
     /// Manages the active ThemeData and provides a reactive stream for theme updates.
+    /// Registered into MaquiServices as IThemeProvider by CoreBootstrap.
     /// </summary>
-    public class ThemeProvider : MonoBehaviour
+    public class ThemeProvider : MonoBehaviour, IThemeProvider
     {
-        public static ThemeProvider Instance { get; private set; }
-
         [SerializeField] private ThemeData initialTheme;
 
         private readonly ReactiveProperty<ThemeData> _currentTheme = new();
@@ -19,19 +18,9 @@ namespace Maqui.Core.Bridge
 
         private void Awake()
         {
-            if (Instance == null)
+            if (initialTheme != null)
             {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-
-                if (initialTheme != null)
-                {
-                    SetTheme(initialTheme);
-                }
-            }
-            else
-            {
-                Destroy(gameObject);
+                SetTheme(initialTheme);
             }
         }
 

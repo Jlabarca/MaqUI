@@ -1,3 +1,4 @@
+using Maqui.Core;
 using Maqui.Core.Bridge;
 using Maqui.Core.Presentation;
 using Maqui.Core.Logic;
@@ -22,7 +23,7 @@ namespace Maqui.Samples.Modernization
             ViewModel.SelectedColorType
                 .Subscribe(type => {
                     BackgroundGradient.Color1Type = type;
-                    BackgroundGradient.SendMessage("OnThemeChanged", ThemeProvider.Instance.CurrentTheme);
+                    BackgroundGradient.SendMessage("OnThemeChanged", MaquiServices.Get<IThemeProvider>()?.CurrentTheme);
                 })
                 .AddTo(Disposables);
 

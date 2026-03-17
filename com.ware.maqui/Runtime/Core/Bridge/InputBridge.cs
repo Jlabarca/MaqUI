@@ -3,27 +3,17 @@ using UnityEngine;
 namespace Maqui.Core.Bridge
 {
     /// <summary>
-    /// Static bridge for accessing input.
+    /// Input abstraction bridge for Maqui.
     /// Proxies calls to the currently active IInputProvider.
+    /// Registered into MaquiServices as IInputBridge by CoreBootstrap.
     /// </summary>
-    public class InputBridge : MonoBehaviour
+    public class InputBridge : MonoBehaviour, IInputBridge
     {
-        public static InputBridge Instance { get; private set; }
-
         private IInputProvider _provider;
 
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-                InitializeDefaultProvider();
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            InitializeDefaultProvider();
         }
 
         private void InitializeDefaultProvider()
