@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 1956d05a49759d24f999f0a7c2cdc299
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213571
+  packageName: Pinchable ScrollRect
+  packageVersion: 1.0.7
+  assetPath: Assets/LokoSolo/PinchableScrollRect/Documentations/PinchableScrollRect-UserGuide.pdf
+  uploadId: 600835

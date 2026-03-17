@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: c1d12145c690f4844bdcc393d9a9e801
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Editor/OnlyChildGameObjects/ChildObjectPickerWindow.cs
+  uploadId: 708355

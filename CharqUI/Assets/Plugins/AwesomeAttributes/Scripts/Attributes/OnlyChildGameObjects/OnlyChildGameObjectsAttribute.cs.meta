@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: cce1c01900c13cb40ab078ee81ff1629
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Attributes/OnlyChildGameObjects/OnlyChildGameObjectsAttribute.cs
+  uploadId: 708355

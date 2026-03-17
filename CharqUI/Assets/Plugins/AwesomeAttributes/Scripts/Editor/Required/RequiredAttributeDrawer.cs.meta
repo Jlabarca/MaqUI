@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 6729ebf9e2ae0664d8dbaac014ca8223
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Editor/Required/RequiredAttributeDrawer.cs
+  uploadId: 708355

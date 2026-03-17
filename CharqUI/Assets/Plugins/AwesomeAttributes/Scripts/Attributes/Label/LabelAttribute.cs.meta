@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 564d07b17db2acb4a8bcd97d77f1f7d7
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Attributes/Label/LabelAttribute.cs
+  uploadId: 708355

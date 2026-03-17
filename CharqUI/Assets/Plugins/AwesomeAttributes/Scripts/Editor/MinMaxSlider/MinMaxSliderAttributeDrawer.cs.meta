@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: d69d6322b9998794e8fe57bed068f42a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Editor/MinMaxSlider/MinMaxSliderAttributeDrawer.cs
+  uploadId: 708355

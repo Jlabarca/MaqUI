@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a32b9fcfd103d894199c495c22edcc95, type: 3}
+  m_Name: Theme_Light
+  m_EditorClassIdentifier: Maqui.Runtime::Maqui.Core.Logic.ThemeData
+  ThemeName: Light
+  PrimaryColor: {r: 0.22, g: 0.47, b: 0.9, a: 1}
+  SecondaryColor: {r: 0.55, g: 0.35, b: 0.85, a: 1}
+  AccentColor: {r: 0.95, g: 0.65, b: 0.15, a: 1}
+  BackgroundMain: {r: 0.97, g: 0.97, b: 0.98, a: 1}
+  BackgroundOverlay: {r: 1, g: 1, b: 1, a: 0.92}
+  BackgroundContrast: {r: 0.12, g: 0.12, b: 0.15, a: 1}
+  TextPrimary: {r: 0.12, g: 0.12, b: 0.15, a: 1}
+  TextSecondary: {r: 0.5, g: 0.5, b: 0.55, a: 1}
+  TextInverse: {r: 1, g: 1, b: 1, a: 1}
+  Success: {r: 0.18, g: 0.72, b: 0.35, a: 1}
+  Warning: {r: 0.95, g: 0.75, b: 0.1, a: 1}
+  Danger: {r: 0.9, g: 0.22, b: 0.3, a: 1}
+  Info: {r: 0.2, g: 0.6, b: 0.95, a: 1}
+  DefaultRounding: 10
+  DefaultOutlineWidth: 1
+  BlurStrength: 20

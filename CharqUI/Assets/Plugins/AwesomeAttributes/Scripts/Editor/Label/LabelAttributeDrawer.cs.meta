@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 3688fa728fb77264d98dfb276f9423ac
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Editor/Label/LabelAttributeDrawer.cs
+  uploadId: 708355

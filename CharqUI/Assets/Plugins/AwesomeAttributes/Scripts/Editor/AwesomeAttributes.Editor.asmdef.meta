@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 088556472faaf9f4784b2d5a66f26dfa
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296859
+  packageName: Awesome Attributes
+  packageVersion: 1.0.4
+  assetPath: Assets/Plugins/AwesomeAttributes/Scripts/Editor/AwesomeAttributes.Editor.asmdef
+  uploadId: 708355

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 9c8edd89d5c75954998122fe941d8db7
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213571
+  packageName: Pinchable ScrollRect
+  packageVersion: 1.0.7
+  assetPath: Assets/LokoSolo/PinchableScrollRect/Runtime/Utilities/PinchInputForwarder.cs
+  uploadId: 600835

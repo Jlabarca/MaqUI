@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 288e3106a7dbc194e86eecfdeabc2a6c
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213571
+  packageName: Pinchable ScrollRect
+  packageVersion: 1.0.7
+  assetPath: Assets/LokoSolo/PinchableScrollRect/CHANGELOG.md
+  uploadId: 600835

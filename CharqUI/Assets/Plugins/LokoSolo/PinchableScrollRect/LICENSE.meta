@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a68a230520f6aed42b3c94852dc35417
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213571
+  packageName: Pinchable ScrollRect
+  packageVersion: 1.0.7
+  assetPath: Assets/LokoSolo/PinchableScrollRect/LICENSE
+  uploadId: 600835
