@@ -37,3 +37,9 @@ Reorganized docs/ from flat numbered files + legacy/ dump into protocol-driven s
 Wired documentation maintenance rules into CLAUDE.md (6 rules for doc updates). Added Documentation section to root README.md and package README.md. Fixed stale singleton references across both READMEs (MaquiWindowManager.Instance → MaquiServices.Get, [Subscribe] → [Route], missing MapTo in OnBind). Removed OneUI as core dependency claim (only samples reference it). Updated package.json description.
 
 Fixed Router wiring anti-pattern in all 7 demo views — moved `this.MapTo(Router.Default)` from `Start()` to `OnBind()` with `.AddTo(Disposables)` for pool-safe lifecycle. Verified ShopViewModel.Catalogue and FrostedHUDViewModel.Notifications are static catalogs (ReactiveProperty<IReadOnlyList<T>> correct, no ReactiveList conversion needed). Updated CONTEXT.md demo section to reflect actual state.
+
+Removed OneUI/UIFramework dependency from all 3 sample asmdefs (Welcome, SharkSuite, GrandTour). Rewrote WelcomeRouterInterceptor.cs to use only Maqui-native APIs (MaquiServices, IAnimationBridge) instead of OneUI's UIFramework.GetView and DisplayOptions.
+
+Added navigation stack to MaquiWindowManager: per-layer Stack<IWindowHandle>, PopWindow(), GetStackDepth(), BackRequested event, SuppressBackNavigation flag. Added OnBackRequested() virtual hook to ReactiveBaseView<T> (return true to consume). Escape/Cancel detection in Update() via InputBridge with legacy Input fallback. Internal IBackRequestable interface. 8 new tests covering empty pop, topmost disposal, depth tracking, per-layer independence, back consumption, suppression, out-of-order disposal, and push-on-show.
+
+Wrote reference/shared-state.md documenting the two blessed VM-to-VM communication patterns: shared ViewModel instance (Demo3 pattern) and commands + per-window VMs (Demo2 pattern). Includes decision matrix and 6 anti-patterns.

@@ -202,6 +202,7 @@ public abstract class ReactiveBaseView<T> : MaquiBaseView, IFreezableView where 
     protected virtual void OnFreeze();                               // Modal opened → disable input
     protected virtual void OnUnfreeze();                             // Modal closed → restore input
     protected virtual void OnReset();                                // pooled view returning to pool
+    protected virtual bool OnBackRequested();                         // return true to consume back nav
 
     public override void OnViewDestroy();               // disposes Disposables + ViewModel
 }
@@ -226,6 +227,16 @@ Canvas GetLayerCanvas(UILayer layer);
 
 // Fired when any Show*Async fails (missing asset, wrong component, provider exception, etc.)
 event Action<WindowLoadFailedEvent> WindowLoadFailed;
+
+// ── Navigation Stack ──────────────────────────────────────────────────
+// Pop the topmost window on the given layer (disposes it). Returns false if stack is empty.
+bool PopWindow(UILayer layer);
+// Get the current stack depth for a layer
+int GetStackDepth(UILayer layer);
+// Fired when back is requested (Escape key, B button, etc.) — layer is the highest non-empty layer
+event Action<UILayer> BackRequested;
+// Set to true to suppress the default Escape→Pop behavior (e.g., during transitions)
+bool SuppressBackNavigation { get; set; }
 ```
 
 #### Error handling
@@ -263,6 +274,45 @@ Pool lifecycle:
 Override `OnReset()` to clear UI state that `OnBind()` doesn't explicitly set (scroll positions, input fields, etc.).
 
 **Important**: Poolable views must wire up VitalRouter in `OnBind()` + `Disposables`, not in `Start()`.
+
+#### Navigation stack
+Each layer maintains its own `Stack<IWindowHandle>`. Windows are pushed on show and popped on dispose.
+
+```csharp
+var ui = MaquiServices.Get<IUIService>();
+
+// Query stack state
+int depth = ui.GetStackDepth(UILayer.Default);
+
+// Pop (dispose) the topmost window on a layer
+bool popped = ui.PopWindow(UILayer.Default);
+
+// Suppress automatic Escape→Pop (e.g., during cutscenes)
+ui.SuppressBackNavigation = true;
+
+// Subscribe to back navigation events
+ui.BackRequested += layer => Debug.Log($"Back on {layer}");
+```
+
+Back navigation (Escape key / Cancel button):
+1. MaquiWindowManager.Update() detects Escape (via InputBridge or legacy Input)
+2. Finds the highest non-empty layer (Modal > Overlay > Default > Background)
+3. Fires `BackRequested` event
+4. Calls `OnBackRequested()` on the topmost view — if it returns `true`, the event is consumed
+5. Otherwise, calls `PopWindow()` to dispose the topmost window
+
+Override `OnBackRequested()` in your view to intercept back navigation:
+```csharp
+protected override bool OnBackRequested()
+{
+    if (_hasUnsavedChanges)
+    {
+        ShowConfirmDialog();
+        return true; // consume — don't close
+    }
+    return false; // allow default pop
+}
+```
 
 ### UILayer
 ```csharp

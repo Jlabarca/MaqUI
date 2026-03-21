@@ -2,8 +2,7 @@
     "name": "Maqui.Samples.SharkSuite",
     "rootNamespace": "Maqui.Samples.SharkSuite",
     "references": [
-        "Maqui.Runtime",
-        "UIFramework"
+        "Maqui.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -127,5 +127,31 @@ namespace Maqui.Core.Presentation
         /// Subscribe to show fallback UI or trigger retry logic.
         /// </summary>
         event Action<WindowLoadFailedEvent> WindowLoadFailed;
+
+        // ── Navigation Stack ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Pops (disposes) the topmost window on the given layer.
+        /// Returns false if the layer's navigation stack is empty.
+        /// </summary>
+        bool PopWindow(UILayer layer);
+
+        /// <summary>
+        /// Returns the current number of windows on the given layer's navigation stack.
+        /// </summary>
+        int GetStackDepth(UILayer layer);
+
+        /// <summary>
+        /// Fired when back navigation is requested (Escape key, B button, etc.).
+        /// The UILayer parameter is the highest non-empty layer that will be popped.
+        /// Subscribe to implement custom back navigation logic.
+        /// </summary>
+        event Action<UILayer> BackRequested;
+
+        /// <summary>
+        /// Set to true to suppress the default Escape→Pop behavior
+        /// (e.g., during transitions or cutscenes).
+        /// </summary>
+        bool SuppressBackNavigation { get; set; }
     }
 }

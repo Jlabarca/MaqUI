@@ -806,7 +806,209 @@ namespace Maqui.Tests
             Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
         }
 
+        // ── Navigation Stack Tests ────────────────────────────────────────────
+
+        [UnityTest]
+        public IEnumerator PopWindow_EmptyStack_ReturnsFalse()
+        {
+            yield return null;
+
+            Assert.IsFalse(_manager.PopWindow(UILayer.Default), "PopWindow on empty stack should return false");
+            Assert.IsFalse(_manager.PopWindow(UILayer.Modal), "PopWindow on empty Modal stack should return false");
+        }
+
+        [UnityTest]
+        public IEnumerator PopWindow_DisposesTopmost()
+        {
+            yield return null;
+
+            var prefab = new GameObject("Prefab");
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            var h1 = _manager.ShowPrefabAsync("test/w1", UILayer.Default).GetAwaiter().GetResult();
+            var h2 = _manager.ShowPrefabAsync("test/w2", UILayer.Default).GetAwaiter().GetResult();
+
+            var root2 = h2.Root;
+            var root1 = h1.Root;
+
+            Assert.AreEqual(2, _manager.GetStackDepth(UILayer.Default));
+
+            var popped = _manager.PopWindow(UILayer.Default);
+            yield return null;
+
+            Assert.IsTrue(popped, "PopWindow should return true");
+            Assert.IsTrue(root2 == null, "Top window should be destroyed");
+            Assert.IsFalse(root1 == null, "Bottom window should survive");
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            h1.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator GetStackDepth_TracksShowAndDispose()
+        {
+            yield return null;
+
+            var prefab = new GameObject("Prefab");
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            Assert.AreEqual(0, _manager.GetStackDepth(UILayer.Default));
+
+            var h1 = _manager.ShowPrefabAsync("test/w1", UILayer.Default).GetAwaiter().GetResult();
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            var h2 = _manager.ShowPrefabAsync("test/w2", UILayer.Default).GetAwaiter().GetResult();
+            Assert.AreEqual(2, _manager.GetStackDepth(UILayer.Default));
+
+            h2.Dispose();
+            yield return null;
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            h1.Dispose();
+            yield return null;
+            Assert.AreEqual(0, _manager.GetStackDepth(UILayer.Default));
+
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator GetStackDepth_PerLayerIndependent()
+        {
+            yield return null;
+
+            var prefab = new GameObject("Prefab");
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            var hDefault = _manager.ShowPrefabAsync("test/w1", UILayer.Default).GetAwaiter().GetResult();
+            var hOverlay = _manager.ShowPrefabAsync("test/w2", UILayer.Overlay).GetAwaiter().GetResult();
+
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Overlay));
+            Assert.AreEqual(0, _manager.GetStackDepth(UILayer.Modal));
+
+            hDefault.Dispose();
+            hOverlay.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator BackRequested_OnBackRequested_ConsumesEvent()
+        {
+            yield return null;
+
+            var prefab = new GameObject("BackPrefab");
+            prefab.AddComponent<CanvasGroup>();
+            prefab.AddComponent<RectTransform>();
+            prefab.AddComponent<BackConsumingView>();
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            var vm = new TestVM();
+            var handle = _manager.ShowWindowAsync<BackConsumingView, TestVM>(
+                "test/back", UILayer.Default, vm).GetAwaiter().GetResult();
+
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            // Simulate what Update() does when Escape is pressed:
+            // The view's OnBackRequested returns true, so PopWindow should NOT be called
+            var view = handle.Root.GetComponent<BackConsumingView>();
+            Assert.IsTrue(view.OnBackRequestedResult, "BackConsumingView should return true");
+
+            // Verify the view is still alive (stack not popped because event was consumed)
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+            Assert.IsTrue(handle.IsVisible);
+
+            handle.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator SuppressBackNavigation_DefaultsFalse()
+        {
+            yield return null;
+            Assert.IsFalse(_manager.SuppressBackNavigation);
+        }
+
+        [UnityTest]
+        public IEnumerator NavigationStack_OutOfOrderDispose_HandledGracefully()
+        {
+            yield return null;
+
+            var prefab = new GameObject("Prefab");
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            var h1 = _manager.ShowPrefabAsync("test/w1", UILayer.Default).GetAwaiter().GetResult();
+            var h2 = _manager.ShowPrefabAsync("test/w2", UILayer.Default).GetAwaiter().GetResult();
+            var h3 = _manager.ShowPrefabAsync("test/w3", UILayer.Default).GetAwaiter().GetResult();
+
+            Assert.AreEqual(3, _manager.GetStackDepth(UILayer.Default));
+
+            // Dispose middle window (out of order)
+            h2.Dispose();
+            yield return null;
+            Assert.AreEqual(2, _manager.GetStackDepth(UILayer.Default));
+
+            // Pop top — should get h3
+            var root3 = h3.Root;
+            _manager.PopWindow(UILayer.Default);
+            yield return null;
+            Assert.IsTrue(root3 == null, "h3 should be destroyed by pop");
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            h1.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator ShowWindowAsync_TypedView_PushesToStack()
+        {
+            yield return null;
+
+            var prefab = new GameObject("ViewPrefab");
+            prefab.AddComponent<CanvasGroup>();
+            prefab.AddComponent<RectTransform>();
+            prefab.AddComponent<TestView>();
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            Assert.AreEqual(0, _manager.GetStackDepth(UILayer.Default));
+
+            var handle = _manager.ShowWindowAsync<TestView, TestVM>(
+                "test/view", UILayer.Default, new TestVM()).GetAwaiter().GetResult();
+
+            Assert.AreEqual(1, _manager.GetStackDepth(UILayer.Default));
+
+            handle.Dispose();
+            yield return null;
+            Assert.AreEqual(0, _manager.GetStackDepth(UILayer.Default));
+
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
         // ── Test doubles ──────────────────────────────────────────────────────
+
+        private class BackConsumingView : ReactiveBaseView<TestVM>
+        {
+            public bool OnBackRequestedResult = true;
+
+            protected override void OnBind() { }
+            protected override bool OnBackRequested() => OnBackRequestedResult;
+        }
 
         private class PoolTrackingVM : Maqui.Core.Logic.ViewModel
         {

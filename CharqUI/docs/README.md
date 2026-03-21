@@ -24,6 +24,7 @@
 | [rendering-optimization.md](reference/rendering-optimization.md) | Canvas rebuilds, draw calls, fill rate, profiling |
 | [procedural-visuals.md](reference/procedural-visuals.md) | Gradient meshes, procedural overlays, batching |
 | [input-abstraction.md](reference/input-abstraction.md) | IInputProvider, dual input system support |
+| [shared-state.md](reference/shared-state.md) | VM-to-VM communication: shared VM vs. commands |
 
 ## guides/ — How-To
 

@@ -12,7 +12,7 @@ namespace Maqui.Core.Presentation
     /// Extends MaquiBaseView with typed ViewModel binding, R3 disposables,
     /// and MaquiWindowManager layer/freeze integration.
     /// </summary>
-    public abstract class ReactiveBaseView<T> : MaquiBaseView, IFreezableView, IPoolResetable where T : ViewModel
+    public abstract class ReactiveBaseView<T> : MaquiBaseView, IFreezableView, IPoolResetable, IBackRequestable where T : ViewModel
     {
         protected T ViewModel { get; private set; }
         protected CompositeDisposable Disposables = new();
@@ -79,6 +79,13 @@ namespace Maqui.Core.Presentation
         /// </summary>
         protected virtual void OnReset() { }
 
+        /// <summary>
+        /// Called when back navigation is requested (Escape key) and this view is
+        /// the topmost window on its layer. Return true to consume the event and
+        /// prevent the default pop behavior. Return false to allow the window to be popped.
+        /// </summary>
+        protected virtual bool OnBackRequested() => false;
+
         // ── Destruction ────────────────────────────────────────────────────────
 
         public override void OnViewDestroy()
@@ -128,5 +135,6 @@ namespace Maqui.Core.Presentation
         void IFreezableView.InvokeFreeze()   => OnFreeze();
         void IFreezableView.InvokeUnfreeze() => OnUnfreeze();
         void IPoolResetable.InvokeResetForPool() => ResetForPool();
+        bool IBackRequestable.InvokeBackRequested() => OnBackRequested();
     }
 }

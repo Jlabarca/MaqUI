@@ -43,6 +43,14 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 - `ThemeProvider` — `ReactiveProperty<ThemeData>`, 13 color slots, runtime swap
 - `AnimationBridge` — `FadeAsync`, `ScaleAsync`, `SceneTransitionAsync`
 
+### Navigation Stack
+- Per-layer `Stack<IWindowHandle>` (push on show, pop on dispose)
+- `PopWindow(UILayer)` — dispose topmost window on a layer
+- `GetStackDepth(UILayer)` — query stack depth
+- `BackRequested` event — fired on Escape/Cancel input
+- `OnBackRequested()` — view hook to consume back navigation
+- `SuppressBackNavigation` — disable auto Escape→Pop during cutscenes/transitions
+
 ### Subscribers
 - `ThemeSubscriber`, `ThemeImageSubscriber`, `ThemeTextSubscriber` — zero-code theme binding
 
@@ -64,14 +72,14 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 | 2 | ~~No object pooling~~ | Should fix | **Fixed** — WindowPool, opt-in per asset key |
 | 3 | ~~Reactive collections missing~~ | Must fix | **Fixed** — ReactiveList\<T\> |
 | 4 | ~~Minimal test coverage~~ | Must fix | **Fixed** — 13 runtime + 1 editor test suites |
-| 5 | No VM-to-VM communication pattern | Should fix | Open — need blessed shared-state pattern |
+| 5 | ~~No VM-to-VM communication pattern~~ | Should fix | **Fixed** — documented in `reference/shared-state.md` (shared VM + commands patterns) |
 | 6 | ~~No error handling~~ | Must fix | **Fixed** — WindowLoadFailed event, null-return |
 | 7 | Animation system too simple | Nice to have | Open — no sequencing, no easing library |
 | 8 | No prefab validation / compile-time safety | Should fix | Open — string asset keys, no editor validator |
 | 9 | Theme system lacks depth | Nice to have | Open — flat, no inheritance/cascading |
 | 10 | No runtime debugging tools | Nice to have | Open |
 | 11 | CoreBootstrap not configurable | Nice to have | Open — no headless mode |
-| 12 | No navigation stack / back-button | Should fix | Open |
+| 12 | ~~No navigation stack / back-button~~ | Should fix | **Fixed** — per-layer Stack\<IWindowHandle\>, PopWindow, Escape/Cancel detection, OnBackRequested hook |
 | 13 | No localization hook | Nice to have | Open |
 
 ## Demo Scenes
@@ -88,8 +96,7 @@ All views wire Router in `OnBind()` with `.AddTo(Disposables)` (pool-safe patter
 
 ## Next Steps
 
-1. **VM-to-VM communication pattern** — document one blessed approach for shared state across windows (Demo3 uses shared VM instance — codify this as the standard)
-2. **Navigation stack** — `PushView`/`PopView` with back-button support on the window manager
-3. **Asset key validation** — editor tooling or code-gen to catch typos at compile time
-4. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
-5. **MaquiDebugWindow** — runtime overlay showing layer hierarchy, active handles, modal count, recent commands
+1. **Asset key validation** — editor tooling or code-gen to catch typos at compile time
+2. **MaquiDebugWindow** — runtime overlay showing layer hierarchy, active handles, modal count, recent commands
+3. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
+4. **Sample OneUI removal from scenes** — Welcome/GrandTour/SharkSuite sample asmdefs no longer reference UIFramework; remove OneUI controllers from sample scenes (Unity Editor task)

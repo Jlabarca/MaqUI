@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Maqui.Core.Bridge;
@@ -31,8 +32,17 @@ namespace Maqui.Core.Presentation
         // Window object pool
         private readonly WindowPool _pool = new();
 
+        // Per-layer navigation stacks
+        private readonly Dictionary<UILayer, Stack<IWindowHandle>> _navigationStacks = new();
+
         /// <inheritdoc/>
         public event Action<WindowLoadFailedEvent> WindowLoadFailed;
+
+        /// <inheritdoc/>
+        public event Action<UILayer> BackRequested;
+
+        /// <inheritdoc/>
+        public bool SuppressBackNavigation { get; set; }
 
         /// <summary>True when at least one Modal window is open.</summary>
         internal bool IsModalActive => _modalCount > 0;
@@ -40,11 +50,109 @@ namespace Maqui.Core.Presentation
         private void Awake()
         {
             BuildLayerCanvases();
+            InitializeNavigationStacks();
         }
 
         private void OnDestroy()
         {
             _pool.DrainAll();
+        }
+
+        private void Update()
+        {
+            if (SuppressBackNavigation) return;
+
+            bool escapePressed;
+            var inputBridge = MaquiServices.Get<IInputBridge>();
+            if (inputBridge != null)
+            {
+                escapePressed = inputBridge.GetButtonDown("Cancel");
+            }
+            else
+            {
+                try { escapePressed = Input.GetKeyDown(KeyCode.Escape); }
+                catch (System.InvalidOperationException) { escapePressed = false; }
+            }
+
+            if (!escapePressed) return;
+
+            // Find the highest non-empty layer
+            UILayer? targetLayer = null;
+            UILayer[] layerPriority = { UILayer.Modal, UILayer.Overlay, UILayer.Default, UILayer.Background };
+            foreach (var layer in layerPriority)
+            {
+                if (_navigationStacks.TryGetValue(layer, out var stack) && stack.Count > 0)
+                {
+                    targetLayer = layer;
+                    break;
+                }
+            }
+
+            if (!targetLayer.HasValue) return;
+
+            BackRequested?.Invoke(targetLayer.Value);
+
+            // Give the topmost view a chance to consume the event
+            var topHandle = _navigationStacks[targetLayer.Value].Peek();
+            if (topHandle.Root != null)
+            {
+                var backRequestable = topHandle.Root.GetComponent<MaquiBaseView>() as IBackRequestable;
+                if (backRequestable != null && backRequestable.InvokeBackRequested())
+                    return; // consumed
+            }
+
+            PopWindow(targetLayer.Value);
+        }
+
+        // ── Navigation Stack ────────────────────────────────────────────────────
+
+        private void InitializeNavigationStacks()
+        {
+            foreach (UILayer layer in Enum.GetValues(typeof(UILayer)))
+                _navigationStacks[layer] = new Stack<IWindowHandle>();
+        }
+
+        private void PushToStack(IWindowHandle handle)
+        {
+            if (_navigationStacks.TryGetValue(handle.Layer, out var stack))
+                stack.Push(handle);
+        }
+
+        private void RemoveFromStack(IWindowHandle handle)
+        {
+            if (!_navigationStacks.TryGetValue(handle.Layer, out var stack) || stack.Count == 0)
+                return;
+
+            if (stack.Peek() == handle)
+            {
+                stack.Pop();
+                return;
+            }
+
+            // Handle was disposed out of order — rebuild the stack without it
+            var temp = new Stack<IWindowHandle>(stack.Reverse().Where(h => h != handle));
+            stack.Clear();
+            foreach (var h in temp)
+                stack.Push(h);
+        }
+
+        /// <inheritdoc/>
+        public bool PopWindow(UILayer layer)
+        {
+            if (!_navigationStacks.TryGetValue(layer, out var stack) || stack.Count == 0)
+                return false;
+
+            var handle = stack.Peek(); // Dispose will call OnHandleDisposed → RemoveFromStack
+            handle.Dispose();
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public int GetStackDepth(UILayer layer)
+        {
+            if (_navigationStacks.TryGetValue(layer, out var stack))
+                return stack.Count;
+            return 0;
         }
 
         // ── Layer Canvas Construction ──────────────────────────────────────────
@@ -206,6 +314,7 @@ namespace Maqui.Core.Presentation
 
                 var pooledHandle = new WindowHandle(pooledGo, layer, assetKey, pluginId: null, isPooled: true, this);
                 OnWindowShown(layer);
+                PushToStack(pooledHandle);
                 return pooledHandle;
             }
 
@@ -274,6 +383,7 @@ namespace Maqui.Core.Presentation
 
             var handle = new WindowHandle(go, layer, assetKey, pluginId: null, isPooled: options.Pooled, this);
             OnWindowShown(layer);
+            PushToStack(handle);
             return handle;
         }
 
@@ -333,6 +443,7 @@ namespace Maqui.Core.Presentation
             }
 
             OnWindowShown(layer);
+            PushToStack(handle);
             return handle;
         }
 
@@ -355,6 +466,9 @@ namespace Maqui.Core.Presentation
 
         internal void OnHandleDisposed(WindowHandle handle)
         {
+            // Remove from navigation stack
+            RemoveFromStack(handle);
+
             // Remove from plugin tracking if applicable
             if (handle.PluginId != null &&
                 _pluginHandles.TryGetValue(handle.PluginId, out var list))
@@ -515,5 +629,15 @@ namespace Maqui.Core.Presentation
     internal interface IPoolResetable
     {
         void InvokeResetForPool();
+    }
+
+    /// <summary>
+    /// Internal interface implemented by ReactiveBaseView to allow MaquiWindowManager
+    /// to query whether a view wants to consume a back navigation event.
+    /// </summary>
+    internal interface IBackRequestable
+    {
+        /// <summary>Returns true if the view consumed the back event (prevents pop).</summary>
+        bool InvokeBackRequested();
     }
 }

@@ -3,7 +3,6 @@
     "rootNamespace": "Maqui.Samples.GrandTour",
     "references": [
         "Maqui.Runtime",
-        "UIFramework",
         "VitalRouter"
     ],
     "includePlatforms": [],
