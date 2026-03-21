@@ -1,7 +1,7 @@
 # CLAUDE.md — Maqui Project Context
 
 > AI session context for `D:\ware\MaqUI\`. Read this first, always.
-> Last updated to reflect: Singletons removed, MaquiServices service locator added, MaquiBaseView added, ReactiveList\<T\> reactive collections, WindowLoadFailed error event, window object pooling, asset key validation, expanded test coverage.
+> Last updated to reflect: Singletons removed, MaquiServices service locator added, MaquiBaseView added, ReactiveList\<T\> reactive collections, WindowLoadFailed error event, window object pooling, asset key validation, MaquiConfig configurable bootstrap, expanded test coverage.
 
 ---
 
@@ -27,6 +27,7 @@ D:\ware\MaqUI\
 │   │   ├── Maqui.Runtime.asmdef refs: UniTask, R3.Unity, TMP
 │   │   └── Core\
 │   │       ├── CoreBootstrap.cs         [RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]
+│   │       ├── MaquiConfig.cs          ScriptableObject — optional bootstrap config
 │   │       ├── MaquiServices.cs        static service locator (Register/Get/Reset)
 │   │       ├── Bridge\
 │   │       │   ├── AnimationBridge.cs   FadeAsync, ScaleAsync, SceneTransitionAsync
@@ -117,13 +118,15 @@ DontDestroyOnLoad and attaches (in order), registering each into `MaquiServices`
 **No scene setup, no prefab, no Awake ordering required.**
 **No singletons — all services accessed via `MaquiServices.Get<T>()`.**
 
+Optionally place a `MaquiConfig` asset at `Resources/MaquiConfig` to disable individual bridges or enable headless mode (skips all bridges — useful for server builds or tests).
+
 ---
 
 ## Namespaces & Assemblies
 
 | Namespace | Assembly | Contents |
 |:---|:---|:---|
-| `Maqui.Core` | `Maqui.Runtime` | `CoreBootstrap`, `MaquiServices` |
+| `Maqui.Core` | `Maqui.Runtime` | `CoreBootstrap`, `MaquiConfig`, `MaquiServices` |
 | `Maqui.Core.Bridge` | `Maqui.Runtime` | `AnimationBridge`/`IAnimationBridge`, `InputBridge`/`IInputBridge`, `RouterBridge`/`IRouterBridge`, `ThemeProvider`/`IThemeProvider`, `MaquiNavigator`, `IInputProvider`, `IMaquiAssetProvider`, `MaquiAssetProviderBridge`, `ResourcesAssetProvider` |
 | `Maqui.Core.Logic` | `Maqui.Runtime` | `ViewModel`, `ThemeData`, `ThemeColorType` |
 | `Maqui.Core.Presentation` | `Maqui.Runtime` | `ReactiveBaseView<T>`, `MaquiWindowManager`, `IUIService`, `IWindowHandle`, `UILayer`, `ThemeSubscriber`, `ThemeImageSubscriber`, `ThemeTextSubscriber` |
@@ -140,6 +143,22 @@ MaquiServices.Register<IInputBridge>(bridge);      // called by CoreBootstrap
 MaquiServices.Get<IInputBridge>();                  // returns registered instance or null
 MaquiServices.Get<IThemeProvider>()?.SetTheme(t);   // null-safe access pattern
 MaquiServices.Reset();                             // test isolation — clears all registrations
+```
+
+### MaquiConfig
+```csharp
+// Maqui.Core — optional ScriptableObject, place at Resources/MaquiConfig
+// If absent, all services are enabled (zero-config default, fully backward-compatible)
+[CreateAssetMenu(fileName = "MaquiConfig", menuName = "Maqui/Config")]
+public class MaquiConfig : ScriptableObject
+{
+    public bool Headless = false;           // skip ALL bridges + window manager
+    public bool EnableInput = true;         // InputBridge
+    public bool EnableRouter = true;        // RouterBridge
+    public bool EnableTheme = true;         // ThemeProvider
+    public bool EnableAnimation = true;     // AnimationBridge
+    public bool EnableWindowManager = true; // MaquiWindowManager
+}
 ```
 
 ### ViewModel

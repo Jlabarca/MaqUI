@@ -56,6 +56,24 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 - Component mismatch: suggests the actual view type found on the prefab
 - Editor: `Maqui/Validate Asset Keys` menu scans Resources/Views/ prefabs for CanvasGroup + MaquiBaseView
 
+### Animation Sequencing
+- `Ease` enum — 12 easing types (Linear, Quad, Cubic, Back, Elastic — In/Out/InOut variants)
+- `EaseFunctions.Evaluate(ease, t)` — mathematical easing evaluation
+- `AnimationSequence` — fluent builder: `Create().Then(...).With(...).Delay(0.5f).PlayAsync(ct)`
+- Eased overloads: `FadeAsync(..., Ease ease, ...)`, `ScaleAsync(..., Ease ease, ...)`
+
+### Theme Inheritance
+- `ThemeData._parent` — optional parent theme reference (recursive chain)
+- Per-slot override tracking (`_overrides[]`) — inherited slots fall through to parent
+- `SetColorOverride()` / `ClearOverride()` / `IsOverridden()` API
+- Backward compatible — existing ThemeData assets default to all-overridden
+
+### Configurable Bootstrap
+- `MaquiConfig` ScriptableObject (Create: Maqui/Config)
+- `Headless` flag — skip all bridge/window manager creation
+- Per-bridge enable flags: `EnableInput`, `EnableRouter`, `EnableTheme`, `EnableAnimation`, `EnableWindowManager`
+- Optional — if no `Resources/MaquiConfig` asset exists, behaves exactly as before
+
 ### Debug Tooling
 - `MaquiDebugWindow` (Editor: Window > Maqui > Debug Window)
 - Shows: service registration status, modal state, freeze state, per-layer window stacks, navigation controls
@@ -83,11 +101,11 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 | 4 | ~~Minimal test coverage~~ | Must fix | **Fixed** — 13 runtime + 1 editor test suites |
 | 5 | ~~No VM-to-VM communication pattern~~ | Should fix | **Fixed** — documented in `reference/shared-state.md` (shared VM + commands patterns) |
 | 6 | ~~No error handling~~ | Must fix | **Fixed** — WindowLoadFailed event, null-return |
-| 7 | Animation system too simple | Nice to have | Open — no sequencing, no easing library |
+| 7 | ~~Animation system too simple~~ | Nice to have | **Fixed** — Ease enum (12 types), EaseFunctions, AnimationSequence builder (Then/With/Delay) |
 | 8 | ~~No prefab validation / compile-time safety~~ | Should fix | **Fixed** — runtime key validation + component suggestion + editor validator menu |
-| 9 | Theme system lacks depth | Nice to have | Open — flat, no inheritance/cascading |
+| 9 | ~~Theme system lacks depth~~ | Nice to have | **Fixed** — parent theme inheritance, per-slot overrides, SetColorOverride/ClearOverride |
 | 10 | ~~No runtime debugging tools~~ | Nice to have | **Fixed** — MaquiDebugWindow (Editor: Window > Maqui > Debug Window) |
-| 11 | CoreBootstrap not configurable | Nice to have | Open — no headless mode |
+| 11 | ~~CoreBootstrap not configurable~~ | Nice to have | **Fixed** — MaquiConfig ScriptableObject, headless mode, per-bridge enable flags |
 | 12 | ~~No navigation stack / back-button~~ | Should fix | **Fixed** — per-layer Stack\<IWindowHandle\>, PopWindow, Escape/Cancel detection, OnBackRequested hook |
 | 13 | No localization hook | Nice to have | Open |
 
@@ -107,6 +125,4 @@ All views wire Router in `OnBind()` with `.AddTo(Disposables)` (pool-safe patter
 
 1. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
 2. **Sample OneUI removal from scenes** — sample asmdefs no longer reference UIFramework; remove OneUI controllers from sample scenes (Unity Editor task)
-3. **Animation sequencing** — IAnimationSequence builder for parallel/sequential animations with easing curves
-4. **Theme inheritance** — hierarchical/cascading ThemeData for per-widget overrides
-5. **Configurable bootstrap** — MaquiConfig ScriptableObject for headless mode, selective bridge loading
+3. **Localization hook** — `LocalizedReactiveProperty<string>` or `Localize(key)` extension that auto-updates on locale change

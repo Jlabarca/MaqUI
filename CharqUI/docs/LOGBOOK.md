@@ -49,3 +49,11 @@ Added asset key validation: runtime null/whitespace rejection, backslash normali
 Added MaquiDebugWindow (Window > Maqui > Debug Window): shows service registration status, modal/freeze state, per-layer window stacks with foldouts, and "Pop Topmost" navigation button. Play-mode only with auto-repaint. Added InternalsVisibleTo for Maqui.Editor assembly access to internal DebugInfo struct.
 
 All 13 original v0.1.0 gaps assessed: 10 fixed, 3 remaining (animation sequencing, theme inheritance, configurable bootstrap — all "nice to have").
+
+Added animation sequencing: Ease enum (12 types) with EaseFunctions, AnimationSequence fluent builder (Then/With/Delay/PlayAsync), eased FadeAsync/ScaleAsync overloads on IAnimationBridge. 11 new tests.
+
+Added theme inheritance: ThemeData._parent for hierarchical cascading, per-slot _overrides[] tracking, SetColorOverride/ClearOverride/IsOverridden API. Backward compatible (existing assets default all-overridden). 7 new tests.
+
+Added configurable bootstrap: MaquiConfig ScriptableObject with Headless flag and per-bridge enable toggles. CoreBootstrap loads from Resources/MaquiConfig, falls back to full bootstrap when absent. 5 new tests.
+
+All 13 original v0.1.0 gaps now fixed. Only remaining items: demo scene rewire (Unity Editor task), sample scene cleanup, and localization hook.

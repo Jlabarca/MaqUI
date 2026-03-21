@@ -13,9 +13,17 @@ namespace Maqui.Core.Bridge
     public class AnimationBridge : MonoBehaviour, IAnimationBridge
     {
         /// <summary>
-        /// Fades a CanvasGroup to a target alpha.
+        /// Fades a CanvasGroup to a target alpha (linear).
         /// </summary>
-        public async UniTask FadeAsync(CanvasGroup group, float targetAlpha, float duration, CancellationToken ct = default)
+        public UniTask FadeAsync(CanvasGroup group, float targetAlpha, float duration, CancellationToken ct = default)
+        {
+            return FadeAsync(group, targetAlpha, duration, Ease.Linear, ct);
+        }
+
+        /// <summary>
+        /// Fades a CanvasGroup to a target alpha with easing.
+        /// </summary>
+        public async UniTask FadeAsync(CanvasGroup group, float targetAlpha, float duration, Ease ease, CancellationToken ct = default)
         {
             if (group == null) return;
 
@@ -27,7 +35,8 @@ namespace Maqui.Core.Bridge
                 if (ct.IsCancellationRequested) return;
 
                 elapsed += Time.deltaTime;
-                group.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+                float t = Mathf.Clamp01(elapsed / duration);
+                group.alpha = Mathf.LerpUnclamped(startAlpha, targetAlpha, EaseFunctions.Evaluate(ease, t));
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
             }
 
@@ -35,7 +44,7 @@ namespace Maqui.Core.Bridge
         }
 
         /// <summary>
-        /// Scales a Transform to a target scale.
+        /// Scales a Transform to a target scale (linear, with optional AnimationCurve).
         /// </summary>
         public async UniTask ScaleAsync(RectTransform transform, Vector3 targetScale, float duration, AnimationCurve curve = null, CancellationToken ct = default)
         {
@@ -53,6 +62,29 @@ namespace Maqui.Core.Bridge
                 float curveValue = curve?.Evaluate(t) ?? t;
 
                 transform.localScale = Vector3.LerpUnclamped(startScale, targetScale, curveValue);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            transform.localScale = targetScale;
+        }
+
+        /// <summary>
+        /// Scales a Transform to a target scale with easing.
+        /// </summary>
+        public async UniTask ScaleAsync(RectTransform transform, Vector3 targetScale, float duration, Ease ease, CancellationToken ct = default)
+        {
+            if (transform == null) return;
+
+            Vector3 startScale = transform.localScale;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                if (ct.IsCancellationRequested) return;
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                transform.localScale = Vector3.LerpUnclamped(startScale, targetScale, EaseFunctions.Evaluate(ease, t));
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
             }
 
