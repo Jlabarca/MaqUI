@@ -51,13 +51,13 @@ namespace MaquiDemos.GameUI
 
         private IWindowHandle _ownHandle; // set by Demo2Starter so we can self-close
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         // Called by Demo2Starter immediately after ShowWindowAsync
         public void SetHandle(IWindowHandle handle) => _ownHandle = handle;
 
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
+
             _closeButton.onClick.AddListener(() =>
                 _ = Router.Default.PublishAsync(new CloseInventoryCommand()));
 

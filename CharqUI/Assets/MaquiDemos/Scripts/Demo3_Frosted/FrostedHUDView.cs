@@ -53,10 +53,9 @@ namespace MaquiDemos.Frosted
         [Header("Buttons")]
         [SerializeField] private Button _settingsButton;
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
             _notifButton.onClick.AddListener(() =>
                 _ = Router.Default.PublishAsync(new OpenNotificationsCommand()));
 

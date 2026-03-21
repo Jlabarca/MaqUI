@@ -74,20 +74,22 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 | 12 | No navigation stack / back-button | Should fix | Open |
 | 13 | No localization hook | Nice to have | Open |
 
-## Demo Scenes (incomplete)
+## Demo Scenes
 
-Three demo scenes exist but use an overlay approach (new prefabs on top of scene UI) instead of the intended "rewire existing UI" pattern:
+Three demo scenes with 7 prefab-based windows, all using IUIService layer system correctly:
 
-- **Demo1 Gallery** — OneUI component showcase. Needs: rewire existing tabs/buttons to GalleryViewModel, remove OneUI controllers.
-- **Demo2 Game HUD** — Modular Kit HUD. Needs: bind existing HP/gold/inventory UI to ViewModels, use VitalRouter for panel navigation.
-- **Demo3 Frosted HUD** — Le Tai blur panels. Needs: bind existing frosted panels to ViewModels, drive blur reactively.
+- **Demo1 Gallery** — Tab switching, theme toggle, fade+scale entrance. 1 window (Default layer).
+- **Demo2 Game HUD** — Three-layer UI (HUD→Inventory→Shop). Demonstrates modal freeze system, ReactiveList granular binding, shared gold state across windows. 3 windows (Overlay/Default/Modal).
+- **Demo3 Frosted HUD** — Shared ViewModel across 3 windows, two-way settings binding, slide animations. Le Tai TranslucentImage blur effects. 3 windows (Overlay/Modal/Modal).
 
-Current overlay prefabs: `Assets/Resources/Views/` (7 prefabs). These work as proof-of-concept but don't demonstrate the rewire pattern.
+All views wire Router in `OnBind()` with `.AddTo(Disposables)` (pool-safe pattern). Prefabs at `Assets/Resources/Views/`.
+
+**Future improvement**: The original scene UI (OneUI/Pack/Le Tai components) still exists alongside the Maqui prefabs. The intended end-state is to rewire existing scene elements to ViewModels rather than using separate overlay prefabs. This requires Unity Editor work (scene/prefab modifications).
 
 ## Next Steps
 
-1. **VM-to-VM communication pattern** — document one blessed approach for shared state across windows
+1. **VM-to-VM communication pattern** — document one blessed approach for shared state across windows (Demo3 uses shared VM instance — codify this as the standard)
 2. **Navigation stack** — `PushView`/`PopView` with back-button support on the window manager
 3. **Asset key validation** — editor tooling or code-gen to catch typos at compile time
-4. **Demo rewire** — convert overlay demos to rewired-in-place demos
+4. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
 5. **MaquiDebugWindow** — runtime overlay showing layer hierarchy, active handles, modal count, recent commands

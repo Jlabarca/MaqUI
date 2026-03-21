@@ -43,10 +43,9 @@ namespace MaquiDemos.GameUI
         [Header("Buttons")]
         [SerializeField] private Button _inventoryButton;
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
             _inventoryButton.onClick.AddListener(() =>
                 _ = Router.Default.PublishAsync(new OpenInventoryCommand()));
 

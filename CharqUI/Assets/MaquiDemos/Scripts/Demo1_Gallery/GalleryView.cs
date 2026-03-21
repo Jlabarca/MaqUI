@@ -59,10 +59,9 @@ namespace MaquiDemos.Gallery
 
         // ── Lifecycle ──────────────────────────────────────────────────────────
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
             // Tab buttons → publish commands
             for (int i = 0; i < _tabButtons.Length; i++)
             {

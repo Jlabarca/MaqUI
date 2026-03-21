@@ -66,13 +66,13 @@ namespace MaquiDemos.GameUI
         private IWindowHandle _ownHandle;
         private int           _playerGold;   // set by Demo2Starter before Initialize
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         public void SetHandle(IWindowHandle handle) => _ownHandle = handle;
         public void SetPlayerGold(int gold)          => _playerGold = gold;
 
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
+
             _closeButton.onClick.AddListener(() =>
                 _ = Router.Default.PublishAsync(new CloseShopCommand()));
 

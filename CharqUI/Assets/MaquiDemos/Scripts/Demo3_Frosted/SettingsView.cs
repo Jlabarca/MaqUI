@@ -65,12 +65,12 @@ namespace MaquiDemos.Frosted
         private IWindowHandle _ownHandle;
         private bool          _binding; // guard against slider feedback loop
 
-        private void Start() => this.MapTo(Router.Default).AddTo(destroyCancellationToken);
-
         public void SetHandle(IWindowHandle handle) => _ownHandle = handle;
 
         protected override void OnBind()
         {
+            this.MapTo(Router.Default).AddTo(Disposables);
+
             _closeButton.onClick.AddListener(() =>
                 _ = Router.Default.PublishAsync(new CloseSettingsCommand()));
 

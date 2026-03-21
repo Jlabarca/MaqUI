@@ -33,3 +33,7 @@ Fixed 4 of 5 "must fix" gaps:
 ## 2026-03-21 — Documentation Reorganization
 
 Reorganized docs/ from flat numbered files + legacy/ dump into protocol-driven structure: reference/, guides/, design/, research/, tools/, archive/. Created CONTEXT.md as single source of truth, LOGBOOK.md for session history, DOCS-PROTOCOL.md for maintenance rules. Consolidated 6 legacy design comparison docs into one frozen decision record.
+
+Wired documentation maintenance rules into CLAUDE.md (6 rules for doc updates). Added Documentation section to root README.md and package README.md. Fixed stale singleton references across both READMEs (MaquiWindowManager.Instance → MaquiServices.Get, [Subscribe] → [Route], missing MapTo in OnBind). Removed OneUI as core dependency claim (only samples reference it). Updated package.json description.
+
+Fixed Router wiring anti-pattern in all 7 demo views — moved `this.MapTo(Router.Default)` from `Start()` to `OnBind()` with `.AddTo(Disposables)` for pool-safe lifecycle. Verified ShopViewModel.Catalogue and FrostedHUDViewModel.Notifications are static catalogs (ReactiveProperty<IReadOnlyList<T>> correct, no ReactiveList conversion needed). Updated CONTEXT.md demo section to reflect actual state.
