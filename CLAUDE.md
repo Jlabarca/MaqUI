@@ -78,10 +78,16 @@ D:\ware\MaqUI\
     │   └── Packages\            NuGet DLLs: R3, VitalRouter, VitalRouter.R3
     ├── Packages\manifest.json   links com.ware.maqui via "file:../../com.ware.maqui"
     └── docs\
-        ├── 01-architecture.md … 09-samples-reference.md
-        ├── adaption-report.md   ORO gap analysis
-        ├── oro-maqui-ui-rework.md  ORO UI design (Maqui edition)
-        └── legacy\              30 pre-rename docs, unmodified
+        ├── CONTEXT.md           living doc (state, decisions, next steps)
+        ├── LOGBOOK.md           append-only session history
+        ├── DOCS-PROTOCOL.md     documentation rules
+        ├── README.md            index of all docs
+        ├── reference\           system deep-dives (architecture, routing, theming, etc.)
+        ├── guides\              quick-start, performance
+        ├── design\              frozen decision records (foundation, ORO adaptation)
+        ├── research\            predecessor framework analyses
+        ├── tools\               third-party tool docs
+        └── archive\             historical CharqUI-era docs
 ```
 
 ---
@@ -494,18 +500,20 @@ protected override void OnReset()
 
 ## Documentation
 
-`CharqUI/docs/`:
-- `01-architecture.md` — layer model, class hierarchy, bootstrap, data flow
-- `02-quick-start.md` — first screen in 15 min
-- `03-core-concepts.md` — ViewModel, ReactiveBaseView, R3 patterns, ThemeProvider
-- `04-routing-commands.md` — VitalRouter, interceptors, `[Route]`, async pipeline
-- `05-theming.md` — ThemeData, SetTheme, ThemeSubscriber
-- `06-animation-transitions.md` — AnimationBridge, UniTask, DisplayOptions
-- `07-hybrid-rendering.md` — uGUI vs UI Toolkit decision matrix
-- `08-performance.md` — canvas optimization, draw calls, profiling
-- `09-samples-reference.md` — all 4 samples with architecture diagrams
-- `adaption-report.md` — ORO gap analysis (Maqui vs OxGFrame requirements)
-- `oro-maqui-ui-rework.md` — ORO UI design document (Maqui edition)
+- **`CharqUI/docs/CONTEXT.md`** — project state, architecture decisions, known gaps, next steps (START HERE)
+- **`CharqUI/docs/README.md`** — full index of all documentation
+- **`CharqUI/docs/DOCS-PROTOCOL.md`** — rules for maintaining docs
+
+### Documentation Maintenance
+
+This project uses a structured `docs/` protocol. When you make significant changes, update docs accordingly:
+
+1. **After significant code changes**: Update `CharqUI/docs/CONTEXT.md` — "What's Built" section and known gaps if relevant
+2. **After architecture decisions**: Add to the "Architecture Decisions (Locked)" table in `CharqUI/docs/CONTEXT.md`
+3. **After work sessions**: Append to `CharqUI/docs/LOGBOOK.md` with date, accomplishments, decisions, next steps
+4. **After changing how a system works**: Update the relevant file in `CharqUI/docs/reference/` (NOT status — just system description)
+5. **New docs go in subfolders**: Never add lowercase .md files to `CharqUI/docs/` root. Use `reference/`, `design/`, `research/`, `guides/`, `tools/`, or `archive/`
+6. **Keep the index updated**: If you add/remove/rename a doc, update `CharqUI/docs/README.md`
 
 ---
 
