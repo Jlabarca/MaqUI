@@ -271,13 +271,11 @@ namespace Maqui.Core.Presentation
             where TView : ReactiveBaseView<TViewModel>
             where TViewModel : ViewModel
         {
-            if (string.IsNullOrEmpty(assetKey))
-            {
-                var reason = "ShowWindowAsync called with null or empty assetKey.";
-                Debug.LogError($"[Maqui] {reason}");
-                NotifyLoadFailed(assetKey, layer, reason);
+            if (!ValidateAssetKey(assetKey, layer, "ShowWindowAsync"))
                 return null;
-            }
+
+            // Normalize backslashes to forward slashes
+            assetKey = NormalizeAssetKey(assetKey);
 
             // ── Pool hit path ────────────────────────────────────────────────
             if (options.Pooled && _pool.TryGet(assetKey, out var pooledGo))
@@ -352,7 +350,7 @@ namespace Maqui.Core.Presentation
             var view = go.GetComponent<TView>();
             if (view == null)
             {
-                var reason = $"Prefab '{assetKey}' missing {typeof(TView).Name} component.";
+                var reason = BuildMissingComponentReason<TView>(assetKey, go);
                 Debug.LogError($"[Maqui] {reason}");
                 NotifyLoadFailed(assetKey, layer, reason);
                 Destroy(go);
@@ -395,13 +393,11 @@ namespace Maqui.Core.Presentation
             string pluginId = null,
             CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(assetKey))
-            {
-                var reason = "ShowPrefabAsync called with null or empty assetKey.";
-                Debug.LogError($"[Maqui] {reason}");
-                NotifyLoadFailed(assetKey, layer, reason);
+            if (!ValidateAssetKey(assetKey, layer, "ShowPrefabAsync"))
                 return null;
-            }
+
+            // Normalize backslashes to forward slashes
+            assetKey = NormalizeAssetKey(assetKey);
 
             GameObject prefab;
             try
@@ -546,6 +542,63 @@ namespace Maqui.Core.Presentation
             }
         }
 
+        // ── Asset key validation ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Validates the asset key format. Returns true if valid, false if invalid
+        /// (with error logged and WindowLoadFailed fired).
+        /// </summary>
+        private bool ValidateAssetKey(string assetKey, UILayer layer, string callerName)
+        {
+            if (assetKey == null)
+            {
+                var reason = $"{callerName} called with null assetKey.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(assetKey))
+            {
+                var reason = $"{callerName} called with empty or whitespace-only assetKey: '{assetKey}'.";
+                Debug.LogError($"[Maqui] {reason}");
+                NotifyLoadFailed(assetKey, layer, reason);
+                return false;
+            }
+
+            if (assetKey.Contains('\\'))
+            {
+                Debug.LogWarning($"[Maqui] Asset key '{assetKey}' contains backslashes. Normalizing to forward slashes. Use forward slashes in asset keys.");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Normalizes backslashes to forward slashes in asset keys.
+        /// </summary>
+        private static string NormalizeAssetKey(string assetKey)
+        {
+            return assetKey.Contains('\\') ? assetKey.Replace('\\', '/') : assetKey;
+        }
+
+        /// <summary>
+        /// Builds a detailed error reason when a prefab is missing the expected view component.
+        /// Checks if any other ReactiveBaseView-derived component exists and suggests it.
+        /// </summary>
+        private static string BuildMissingComponentReason<TView>(string assetKey, GameObject go)
+        {
+            // Check if any MaquiBaseView-derived component exists on the prefab
+            var existingView = go.GetComponent<MaquiBaseView>();
+            if (existingView != null)
+            {
+                var actualType = existingView.GetType().Name;
+                return $"Prefab '{assetKey}' has {actualType} but expected {typeof(TView).Name}. Check the asset key or view type.";
+            }
+
+            return $"Prefab '{assetKey}' missing {typeof(TView).Name} component.";
+        }
+
         // ── Error notification ────────────────────────────────────────────────
 
         private void NotifyLoadFailed(string assetKey, UILayer layer, string reason, Exception ex = null)
@@ -564,6 +617,69 @@ namespace Maqui.Core.Presentation
         public void UnregisterFreezable(IFreezableView view)
         {
             _freezableViews.Remove(view);
+        }
+
+        // ── Debug Info (Editor tooling) ─────────────────────────────────────────
+
+        /// <summary>
+        /// Snapshot of MaquiWindowManager state for the Editor debug window.
+        /// </summary>
+        internal struct DebugWindowInfo
+        {
+            public string AssetKey;
+            public UILayer Layer;
+            public bool IsVisible;
+            public bool IsPooled;
+            public string RootName;
+        }
+
+        internal struct DebugInfo
+        {
+            public int ModalCount;
+            public bool ModalMaskActive;
+            public bool IsFrozen;
+            public bool SuppressBackNavigation;
+            public int FreezableViewCount;
+            public Dictionary<UILayer, List<DebugWindowInfo>> WindowsByLayer;
+            public Dictionary<UILayer, int> StackDepths;
+        }
+
+        internal DebugInfo GetDebugInfo()
+        {
+            var info = new DebugInfo
+            {
+                ModalCount = _modalCount,
+                ModalMaskActive = _modalMaskCanvas != null && _modalMaskCanvas.gameObject.activeSelf,
+                IsFrozen = _modalCount > 0,
+                SuppressBackNavigation = SuppressBackNavigation,
+                FreezableViewCount = _freezableViews.Count,
+                WindowsByLayer = new Dictionary<UILayer, List<DebugWindowInfo>>(),
+                StackDepths = new Dictionary<UILayer, int>(),
+            };
+
+            foreach (var kvp in _navigationStacks)
+            {
+                info.StackDepths[kvp.Key] = kvp.Value.Count;
+
+                var windowList = new List<DebugWindowInfo>();
+                foreach (var handle in kvp.Value)
+                {
+                    if (handle is WindowHandle wh)
+                    {
+                        windowList.Add(new DebugWindowInfo
+                        {
+                            AssetKey = wh.AssetKey,
+                            Layer = wh.Layer,
+                            IsVisible = wh.IsVisible,
+                            IsPooled = wh.IsPooled,
+                            RootName = wh.Root != null ? wh.Root.name : "(destroyed)",
+                        });
+                    }
+                }
+                info.WindowsByLayer[kvp.Key] = windowList;
+            }
+
+            return info;
         }
     }
 

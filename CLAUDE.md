@@ -1,7 +1,7 @@
 # CLAUDE.md — Maqui Project Context
 
 > AI session context for `D:\ware\MaqUI\`. Read this first, always.
-> Last updated to reflect: Singletons removed, MaquiServices service locator added, MaquiBaseView added, ReactiveList\<T\> reactive collections, WindowLoadFailed error event, window object pooling, expanded test coverage.
+> Last updated to reflect: Singletons removed, MaquiServices service locator added, MaquiBaseView added, ReactiveList\<T\> reactive collections, WindowLoadFailed error event, window object pooling, asset key validation, expanded test coverage.
 
 ---
 
@@ -58,7 +58,8 @@ D:\ware\MaqUI\
 │   │           ├── ThemeImageSubscriber.cs
 │   │           └── ThemeTextSubscriber.cs
 │   ├── Editor\
-│   │   └── Maqui.Editor.asmdef
+│   │   ├── Maqui.Editor.asmdef
+│   │   └── MaquiAssetValidator.cs       editor menu: Maqui/Validate Asset Keys
 │   ├── Tests\
 │   │   ├── Runtime\   ViewModelTests, ThemeDataTests, MaquiBaseViewTests,
 │   │   │              ReactiveBaseViewTests, MaquiWindowManagerTests,
@@ -238,6 +239,13 @@ event Action<UILayer> BackRequested;
 // Set to true to suppress the default Escape→Pop behavior (e.g., during transitions)
 bool SuppressBackNavigation { get; set; }
 ```
+
+#### Asset key validation
+All `Show*Async` methods validate asset keys before loading:
+- **Null keys**: rejected with `"called with null assetKey"` error
+- **Empty/whitespace keys**: rejected with `"empty or whitespace-only assetKey"` error
+- **Backslash keys**: normalized to forward slashes with a `[Maqui]` warning logged
+- **Wrong component**: if the prefab has a different `MaquiBaseView`-derived component than expected, the error message names both the actual and expected types (e.g., `"has ShopView but expected InventoryView"`)
 
 #### Error handling
 All `Show*Async` methods:

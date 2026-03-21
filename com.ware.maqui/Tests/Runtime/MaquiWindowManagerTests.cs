@@ -86,7 +86,7 @@ namespace Maqui.Tests
         {
             yield return null;
 
-            LogAssert.Expect(LogType.Error, "[Maqui] ShowWindowAsync called with null or empty assetKey.");
+            LogAssert.Expect(LogType.Error, "[Maqui] ShowWindowAsync called with null assetKey.");
 
             var task = _manager.ShowWindowAsync<TestView, TestVM>(
                 null, UILayer.Default, new TestVM());
@@ -100,7 +100,7 @@ namespace Maqui.Tests
         {
             yield return null;
 
-            LogAssert.Expect(LogType.Error, "[Maqui] ShowWindowAsync called with null or empty assetKey.");
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*ShowWindowAsync.*empty.*whitespace"));
 
             var task = _manager.ShowWindowAsync<TestView, TestVM>(
                 "", UILayer.Default, new TestVM());
@@ -114,7 +114,7 @@ namespace Maqui.Tests
         {
             yield return null;
 
-            LogAssert.Expect(LogType.Error, "[Maqui] ShowPrefabAsync called with null or empty assetKey.");
+            LogAssert.Expect(LogType.Error, "[Maqui] ShowPrefabAsync called with null assetKey.");
 
             var task = _manager.ShowPrefabAsync(null, UILayer.Default);
 
@@ -1000,6 +1000,132 @@ namespace Maqui.Tests
             Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
         }
 
+        // ── Asset Key Validation Tests ────────────────────────────────────────
+
+        [UnityTest]
+        public IEnumerator ShowWindowAsync_WhitespaceKey_ReturnsNullAndFiresEvent()
+        {
+            yield return null;
+
+            WindowLoadFailedEvent? received = null;
+            _manager.WindowLoadFailed += e => received = e;
+
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*whitespace"));
+
+            var task = _manager.ShowWindowAsync<TestView, TestVM>(
+                "   ", UILayer.Default, new TestVM());
+
+            Assert.IsTrue(task.Status == Cysharp.Threading.Tasks.UniTaskStatus.Succeeded);
+            Assert.IsNull(task.GetAwaiter().GetResult());
+            Assert.IsNotNull(received, "WindowLoadFailed should have fired for whitespace key");
+            Assert.AreEqual("   ", received.Value.AssetKey);
+        }
+
+        [UnityTest]
+        public IEnumerator ShowPrefabAsync_WhitespaceKey_ReturnsNullAndFiresEvent()
+        {
+            yield return null;
+
+            WindowLoadFailedEvent? received = null;
+            _manager.WindowLoadFailed += e => received = e;
+
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*whitespace"));
+
+            var task = _manager.ShowPrefabAsync("  \t  ", UILayer.Default);
+
+            Assert.IsTrue(task.Status == Cysharp.Threading.Tasks.UniTaskStatus.Succeeded);
+            Assert.IsNull(task.GetAwaiter().GetResult());
+            Assert.IsNotNull(received, "WindowLoadFailed should have fired for whitespace key");
+        }
+
+        [UnityTest]
+        public IEnumerator ShowWindowAsync_BackslashKey_NormalizesAndLoads()
+        {
+            yield return null;
+
+            var prefab = new GameObject("ViewPrefab");
+            prefab.AddComponent<CanvasGroup>();
+            prefab.AddComponent<RectTransform>();
+            prefab.AddComponent<TestView>();
+
+            string loadedKey = null;
+            var trackingProvider = new KeyTrackingAssetProvider(prefab);
+            trackingProvider.OnLoad = key => loadedKey = key;
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(trackingProvider);
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            // Should log a warning about backslashes
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*backslash"));
+
+            var handle = _manager.ShowWindowAsync<TestView, TestVM>(
+                @"Views\MyView", UILayer.Default, new TestVM())
+                .GetAwaiter().GetResult();
+
+            Assert.IsNotNull(handle, "Handle should not be null — backslash key should be normalized");
+            Assert.AreEqual("Views/MyView", loadedKey, "Asset provider should receive normalized key");
+
+            handle.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator ShowPrefabAsync_BackslashKey_NormalizesAndLoads()
+        {
+            yield return null;
+
+            var prefab = new GameObject("Prefab");
+
+            string loadedKey = null;
+            var trackingProvider = new KeyTrackingAssetProvider(prefab);
+            trackingProvider.OnLoad = key => loadedKey = key;
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(trackingProvider);
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*backslash"));
+
+            var handle = _manager.ShowPrefabAsync(@"test\window", UILayer.Default)
+                .GetAwaiter().GetResult();
+
+            Assert.IsNotNull(handle, "Handle should not be null — backslash key should be normalized");
+            Assert.AreEqual("test/window", loadedKey, "Asset provider should receive normalized key");
+
+            handle.Dispose();
+            yield return null;
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
+        [UnityTest]
+        public IEnumerator ShowWindowAsync_WrongViewComponent_IncludesSuggestion()
+        {
+            yield return null;
+
+            WindowLoadFailedEvent? received = null;
+            _manager.WindowLoadFailed += e => received = e;
+
+            // Prefab has ConfigTestView but we request TestView
+            var prefab = new GameObject("WrongViewPrefab");
+            prefab.AddComponent<CanvasGroup>();
+            prefab.AddComponent<RectTransform>();
+            prefab.AddComponent<ConfigTestView>();
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(new MockAssetProvider(prefab));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("Asset provider"));
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"\[Maqui\].*ConfigTestView.*expected.*TestView"));
+
+            var result = _manager.ShowWindowAsync<TestView, TestVM>("test/wrongview", UILayer.Default, new TestVM())
+                .GetAwaiter().GetResult();
+
+            Assert.IsNull(result);
+            Assert.IsNotNull(received);
+            Assert.IsTrue(received.Value.Reason.Contains("ConfigTestView"), "Error should mention the actual component found");
+            Assert.IsTrue(received.Value.Reason.Contains("TestView"), "Error should mention the expected component");
+
+            Object.DestroyImmediate(prefab);
+            Maqui.Core.Bridge.MaquiAssetProviderBridge.SetProvider(null);
+        }
+
         // ── Test doubles ──────────────────────────────────────────────────────
 
         private class BackConsumingView : ReactiveBaseView<TestVM>
@@ -1083,6 +1209,23 @@ namespace Maqui.Tests
                 string key, System.Threading.CancellationToken ct = default)
             {
                 throw new System.IO.FileNotFoundException($"Asset bundle not found: {key}");
+            }
+
+            public void ReleasePrefab(string key) { }
+        }
+
+        private class KeyTrackingAssetProvider : Maqui.Core.Bridge.IMaquiAssetProvider
+        {
+            private readonly GameObject _prefab;
+            public System.Action<string> OnLoad;
+
+            public KeyTrackingAssetProvider(GameObject prefab) => _prefab = prefab;
+
+            public Cysharp.Threading.Tasks.UniTask<GameObject> LoadPrefabAsync(
+                string key, System.Threading.CancellationToken ct = default)
+            {
+                OnLoad?.Invoke(key);
+                return Cysharp.Threading.Tasks.UniTask.FromResult(_prefab);
             }
 
             public void ReleasePrefab(string key) { }

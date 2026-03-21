@@ -51,6 +51,15 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 - `OnBackRequested()` — view hook to consume back navigation
 - `SuppressBackNavigation` — disable auto Escape→Pop during cutscenes/transitions
 
+### Asset Key Validation
+- Runtime: null/whitespace rejection, backslash normalization with warning
+- Component mismatch: suggests the actual view type found on the prefab
+- Editor: `Maqui/Validate Asset Keys` menu scans Resources/Views/ prefabs for CanvasGroup + MaquiBaseView
+
+### Debug Tooling
+- `MaquiDebugWindow` (Editor: Window > Maqui > Debug Window)
+- Shows: service registration status, modal state, freeze state, per-layer window stacks, navigation controls
+
 ### Subscribers
 - `ThemeSubscriber`, `ThemeImageSubscriber`, `ThemeTextSubscriber` — zero-code theme binding
 
@@ -75,9 +84,9 @@ See [design/foundation-decisions.md](design/foundation-decisions.md) for full ra
 | 5 | ~~No VM-to-VM communication pattern~~ | Should fix | **Fixed** — documented in `reference/shared-state.md` (shared VM + commands patterns) |
 | 6 | ~~No error handling~~ | Must fix | **Fixed** — WindowLoadFailed event, null-return |
 | 7 | Animation system too simple | Nice to have | Open — no sequencing, no easing library |
-| 8 | No prefab validation / compile-time safety | Should fix | Open — string asset keys, no editor validator |
+| 8 | ~~No prefab validation / compile-time safety~~ | Should fix | **Fixed** — runtime key validation + component suggestion + editor validator menu |
 | 9 | Theme system lacks depth | Nice to have | Open — flat, no inheritance/cascading |
-| 10 | No runtime debugging tools | Nice to have | Open |
+| 10 | ~~No runtime debugging tools~~ | Nice to have | **Fixed** — MaquiDebugWindow (Editor: Window > Maqui > Debug Window) |
 | 11 | CoreBootstrap not configurable | Nice to have | Open — no headless mode |
 | 12 | ~~No navigation stack / back-button~~ | Should fix | **Fixed** — per-layer Stack\<IWindowHandle\>, PopWindow, Escape/Cancel detection, OnBackRequested hook |
 | 13 | No localization hook | Nice to have | Open |
@@ -96,7 +105,8 @@ All views wire Router in `OnBind()` with `.AddTo(Disposables)` (pool-safe patter
 
 ## Next Steps
 
-1. **Asset key validation** — editor tooling or code-gen to catch typos at compile time
-2. **MaquiDebugWindow** — runtime overlay showing layer hierarchy, active handles, modal count, recent commands
-3. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
-4. **Sample OneUI removal from scenes** — Welcome/GrandTour/SharkSuite sample asmdefs no longer reference UIFramework; remove OneUI controllers from sample scenes (Unity Editor task)
+1. **Demo scene rewire** — bind existing scene UI elements to ViewModels instead of separate prefab overlays (Unity Editor task)
+2. **Sample OneUI removal from scenes** — sample asmdefs no longer reference UIFramework; remove OneUI controllers from sample scenes (Unity Editor task)
+3. **Animation sequencing** — IAnimationSequence builder for parallel/sequential animations with easing curves
+4. **Theme inheritance** — hierarchical/cascading ThemeData for per-widget overrides
+5. **Configurable bootstrap** — MaquiConfig ScriptableObject for headless mode, selective bridge loading

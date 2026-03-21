@@ -43,3 +43,9 @@ Removed OneUI/UIFramework dependency from all 3 sample asmdefs (Welcome, SharkSu
 Added navigation stack to MaquiWindowManager: per-layer Stack<IWindowHandle>, PopWindow(), GetStackDepth(), BackRequested event, SuppressBackNavigation flag. Added OnBackRequested() virtual hook to ReactiveBaseView<T> (return true to consume). Escape/Cancel detection in Update() via InputBridge with legacy Input fallback. Internal IBackRequestable interface. 8 new tests covering empty pop, topmost disposal, depth tracking, per-layer independence, back consumption, suppression, out-of-order disposal, and push-on-show.
 
 Wrote reference/shared-state.md documenting the two blessed VM-to-VM communication patterns: shared ViewModel instance (Demo3 pattern) and commands + per-window VMs (Demo2 pattern). Includes decision matrix and 6 anti-patterns.
+
+Added asset key validation: runtime null/whitespace rejection, backslash normalization with warning, component mismatch suggestions ("expected X but found Y"). Editor validator menu (Maqui/Validate Asset Keys) scans Resources/Views/ prefabs for CanvasGroup and MaquiBaseView. 5 new tests.
+
+Added MaquiDebugWindow (Window > Maqui > Debug Window): shows service registration status, modal/freeze state, per-layer window stacks with foldouts, and "Pop Topmost" navigation button. Play-mode only with auto-repaint. Added InternalsVisibleTo for Maqui.Editor assembly access to internal DebugInfo struct.
+
+All 13 original v0.1.0 gaps assessed: 10 fixed, 3 remaining (animation sequencing, theme inheritance, configurable bootstrap — all "nice to have").
