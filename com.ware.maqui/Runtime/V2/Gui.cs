@@ -25,6 +25,20 @@ namespace Maqui.V2
         private int _nextNodeId;
         private bool _inFrame;
 
+        // --- P4: animation + interaction state (lives across frames) ---
+
+        private readonly AnimationStore _animations = new AnimationStore();
+        private readonly InteractionState _interactions = new InteractionState();
+
+        /// <summary>P4: spring-damper animations keyed by user-supplied string.
+        /// Lives on Gui (not in FrameBuffer) so values survive reconcile.</summary>
+        public AnimationStore Animations => _animations;
+
+        /// <summary>P4: per-NodeId interaction flag table. Written by the
+        /// Unity-side adapter; read by <see cref="Node"/> extension methods.
+        /// Reset every <see cref="BeginFrame"/>.</summary>
+        public InteractionState Interactions => _interactions;
+
         // --- Frame lifecycle ---
 
         /// <summary>Begin a frame. Clears the prior frame's buffer and resets node ids.</summary>
@@ -35,6 +49,10 @@ namespace Maqui.V2
             _scopeStack.Clear();
             _nextNodeId = 0;
             _inFrame = true;
+            // P4: clear per-frame interaction flags so the Unity adapter (or
+            // test driver) re-emits Hover/Active/Focus each frame and per-frame
+            // flags like ClickedThisFrame don't leak forward.
+            _interactions.Reset();
         }
 
         /// <summary>End the current frame. P2 will hand the FrameBuffer to the reconciler here.</summary>
@@ -160,6 +178,31 @@ namespace Maqui.V2
         internal void RecordInteraction(FrameOpKind kind, Node target)
         {
             _frameBuffer.Record(new FrameOp(kind, target.Id, CurrentScopePath));
+        }
+
+        // --- P4: animation + tick helpers ---
+
+        /// <summary>
+        /// P4. Get/update an animated value keyed by <paramref name="key"/>.
+        /// First call initializes at <paramref name="target"/> (no animation);
+        /// subsequent calls update the target and the animator pulls toward it
+        /// on each <see cref="TickAnimations"/>. Returns the current value.
+        /// </summary>
+        public float Animate(string key, float target,
+            float stiffness = AnimationFloat.DefaultStiffness,
+            float damping = AnimationFloat.DefaultDamping)
+        {
+            return _animations.Animate(key, target, stiffness, damping);
+        }
+
+        /// <summary>
+        /// P4. Advance every animation by <paramref name="dt"/> seconds. Call
+        /// once per frame, typically from the Unity-side driver
+        /// (<c>GuiDriver.LateUpdate</c>) before <see cref="BeginFrame"/>.
+        /// </summary>
+        public void TickAnimations(float dt)
+        {
+            _animations.TickAll(dt);
         }
 
         // --- Data scope (1.6) ---

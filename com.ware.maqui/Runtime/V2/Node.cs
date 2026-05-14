@@ -49,9 +49,11 @@ namespace Maqui.V2
     /// <summary>
     /// Interaction primitives are extension methods on <see cref="Node"/> so
     /// callers can write <c>if (gui.Box(...).OnClick()) { ... }</c> per the spec.
-    /// All P1 implementations are <b>record-only</b> — they append a FrameOp and
-    /// return <c>false</c>. Real interaction lives in P4 once the reconciler
-    /// (P2) routes pointer events back into the frame buffer.
+    ///
+    /// <para>As of P4, each method records the FrameOp AND reads the current
+    /// flag from <see cref="Gui.Interactions"/> (written by the Unity-side
+    /// adapter or by tests). Same-frame NodeId semantics — see
+    /// <see cref="InteractionState"/> docs.</para>
     /// </summary>
     public static class NodeInteractions
     {
@@ -59,28 +61,54 @@ namespace Maqui.V2
         {
             if (node.IsNone) return false;
             node.Owner.RecordInteraction(FrameOpKind.OnClick, node);
-            return false; // P1 record-only; P4 will return the real value.
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.ClickedThisFrame);
         }
 
         public static bool OnHover(this Node node)
         {
             if (node.IsNone) return false;
             node.Owner.RecordInteraction(FrameOpKind.OnHover, node);
-            return false;
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Hover);
         }
 
         public static bool OnHold(this Node node)
         {
             if (node.IsNone) return false;
             node.Owner.RecordInteraction(FrameOpKind.OnHold, node);
-            return false;
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Active);
         }
 
         public static bool OnDrag(this Node node)
         {
             if (node.IsNone) return false;
             node.Owner.RecordInteraction(FrameOpKind.OnDrag, node);
-            return false;
+            // "Dragging" = pointer is down (Active) AND has moved since down.
+            // The adapter writes Active on PointerDown and DragStartedThisFrame
+            // on the first Move after Down; we report dragging while Active.
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Active);
+        }
+
+        // --- P4: readable flags inside immediate-mode call (4.3) ---
+
+        /// <summary>P4. True if the pointer is over this node THIS FRAME.</summary>
+        public static bool IsHovered(this Node node)
+        {
+            if (node.IsNone) return false;
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Hover);
+        }
+
+        /// <summary>P4. True if a pointer button is currently down on this node.</summary>
+        public static bool IsActive(this Node node)
+        {
+            if (node.IsNone) return false;
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Active);
+        }
+
+        /// <summary>P4. True if this node has keyboard focus.</summary>
+        public static bool IsFocused(this Node node)
+        {
+            if (node.IsNone) return false;
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Focus);
         }
     }
 }

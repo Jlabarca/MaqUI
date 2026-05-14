@@ -62,6 +62,7 @@
     <Compile Remove="..\Runtime\V2\UIToolkitBackend.cs" />
     <Compile Remove="..\Runtime\V2\GuiDriver.cs" />
     <Compile Remove="..\Runtime\V2\SdfBackend.cs" />
+    <Compile Remove="..\Runtime\V2\UIToolkitInteractionAdapter.cs" />
     <!--
       UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
       MonoBehaviour which the UnityShim does not cover. These compile only
