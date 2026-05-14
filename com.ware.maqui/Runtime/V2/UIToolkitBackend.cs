@@ -40,10 +40,15 @@ namespace Maqui.V2
         private const int MaxPoolSizePerKind = 64;
         private int _nextHandle = 1; // 0 reserved for Root.
 
-        public UIToolkitBackend(VisualElement root)
+        private readonly Gui _gui;
+        private readonly Maqui.V2.Components.IImageLoader _imageLoader;
+
+        public UIToolkitBackend(VisualElement root, Gui gui = null, Maqui.V2.Components.IImageLoader imageLoader = null)
         {
             _root = root ?? throw new System.ArgumentNullException(nameof(root));
             _elements[0] = root;
+            _gui = gui;
+            _imageLoader = imageLoader;
         }
 
         public int Root => 0;
@@ -92,9 +97,16 @@ namespace Maqui.V2
             if (!_elements.TryGetValue(handle, out var element)) return;
             _elements.Remove(handle);
             element.RemoveFromHierarchy();
-            // Pool by kind not tracked; approximate by element type. For v0 we
-            // pool everything into a single "generic" bucket. Future work: track
-            // kind-per-handle to pool more precisely.
+            // Pool by element type. Specialized elements (Label/TextField) don't
+            // pool back into the generic Box bucket — they'd be type-incompatible
+            // when popped for a different FrameOpKind. Drop them on the floor;
+            // GC reclaims.
+            if (element is TextField tf)
+            {
+                _textFieldKeys.Remove(tf);
+                return;
+            }
+            if (element is Label) return;
             Push(FrameOpKind.Box, element);
         }
 
@@ -108,20 +120,29 @@ namespace Maqui.V2
                     return new VisualElement { style = { flexDirection = FlexDirection.Row } };
                 case FrameOpKind.ColumnBegin:
                     return new VisualElement { style = { flexDirection = FlexDirection.Column } };
+                case FrameOpKind.ClipBoxBegin:
+                {
+                    var el = new VisualElement { style = { flexDirection = FlexDirection.Column } };
+                    el.style.overflow = Overflow.Hidden;
+                    return el;
+                }
                 case FrameOpKind.Box:
                 case FrameOpKind.Spacer:
                 case FrameOpKind.DrawRect:
                 case FrameOpKind.DrawLine:
                 case FrameOpKind.DrawCircle:
+                case FrameOpKind.DrawImage:
                     return new VisualElement();
                 case FrameOpKind.DrawText:
                     return new Label();
+                case FrameOpKind.TextInputField:
+                    return new TextField();
                 default:
                     return new VisualElement();
             }
         }
 
-        private static void ApplyProps(VisualElement element, in FrameOp op)
+        private void ApplyProps(VisualElement element, in FrameOp op)
         {
             switch (op.Kind)
             {
@@ -155,8 +176,27 @@ namespace Maqui.V2
                     element.style.backgroundColor = new StyleColor(op.Color);
                     if (op.FloatA > 0f) element.style.height = op.FloatA;
                     break;
+                case FrameOpKind.DrawImage:
+                    ApplySizeIfSet(element, in op);
+                    if (_imageLoader != null && !string.IsNullOrEmpty(op.Text))
+                    {
+                        var tex = _imageLoader.Resolve(op.Text);
+                        if (tex != null)
+                        {
+                            element.style.backgroundImage = new StyleBackground(tex);
+                        }
+                    }
+                    break;
+                case FrameOpKind.TextInputField:
+                    ApplySizeIfSet(element, in op);
+                    if (element is TextField tf)
+                    {
+                        ApplyTextFieldProps(tf, op.Text);
+                    }
+                    break;
                 case FrameOpKind.RowBegin:
                 case FrameOpKind.ColumnBegin:
+                case FrameOpKind.ClipBoxBegin:
                     ApplySizeIfSet(element, in op);
                     break;
                 case FrameOpKind.Spacer:
@@ -164,6 +204,53 @@ namespace Maqui.V2
                     break;
             }
         }
+
+        private void ApplyTextFieldProps(TextField tf, string payload)
+        {
+            // Payload encoding: "<storeKey>|<initialValue>". Backend extracts the
+            // store key and routes value-changed callbacks to gui.TextInputs.Set(key, ...).
+            string storeKey = null;
+            string initial = string.Empty;
+            if (!string.IsNullOrEmpty(payload))
+            {
+                int sep = payload.IndexOf('|');
+                if (sep >= 0)
+                {
+                    storeKey = payload.Substring(0, sep);
+                    initial = payload.Substring(sep + 1);
+                }
+                else
+                {
+                    initial = payload;
+                }
+            }
+
+            // First-time bind: write initial value into the store + subscribe.
+            if (!_textFieldKeys.Contains(tf))
+            {
+                _textFieldKeys.Add(tf);
+                if (_gui != null && storeKey != null && !_gui.TextInputs.Has(storeKey))
+                {
+                    _gui.TextInputs.Set(storeKey, initial);
+                }
+                tf.SetValueWithoutNotify(_gui != null && storeKey != null
+                    ? _gui.TextInputs.Get(storeKey, initial)
+                    : initial);
+                if (_gui != null && storeKey != null)
+                {
+                    var localKey = storeKey;
+                    tf.RegisterValueChangedCallback(evt => _gui.TextInputs.Set(localKey, evt.newValue));
+                }
+            }
+            else if (_gui != null && storeKey != null)
+            {
+                // Reuse path (e.g., pool restore): re-sync from store without firing the callback.
+                var cur = _gui.TextInputs.Get(storeKey, initial);
+                if (tf.value != cur) tf.SetValueWithoutNotify(cur);
+            }
+        }
+
+        private readonly HashSet<TextField> _textFieldKeys = new();
 
         private static void ApplySizeIfSet(VisualElement element, in FrameOp op)
         {

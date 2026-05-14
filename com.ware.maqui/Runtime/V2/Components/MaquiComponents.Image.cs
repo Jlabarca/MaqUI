@@ -27,13 +27,10 @@ namespace Maqui.V2.Components
         /// </summary>
         public static Node Image(this Gui gui, string textureKey, float width = 64f, float height = 64f)
         {
-            var box = gui.Box(width: Size.Pixels(width), height: Size.Pixels(height));
-            // v0 placeholder fill — the Unity backend extension reads the
-            // textureKey from a side-channel (via the GuiDriver) and applies
-            // it as a background image when the IImageLoader resolves.
-            gui.DrawRect(new Color32(180, 180, 180, 255), Size.Pixels(width), Size.Pixels(height));
-            gui.DrawText("[img: " + (textureKey ?? "<null>") + "]");
-            return box;
+            // Records a DrawImage FrameOp; UIToolkitBackend resolves the
+            // texture via its IImageLoader if present, else renders as an
+            // empty box at the requested size.
+            return gui.DrawImage(textureKey, width, height);
         }
     }
 

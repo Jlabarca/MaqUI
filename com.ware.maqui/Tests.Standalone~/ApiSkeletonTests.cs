@@ -259,9 +259,14 @@ namespace Maqui.V2.Tests
         {
             string runtimeDir = FindRuntimeV2Dir();
             string[] forbidden = { "Resources.Load", "GameObject.Instantiate", "[AddComponentMenu" };
+            // Allowlist: files that legitimately use prefab-spawning APIs as the
+            // backend's adapter surface (not as component-authoring code).
+            string[] allowlist = { "ResourcesImageLoader.cs" };
 
             foreach (string file in Directory.GetFiles(runtimeDir, "*.cs", SearchOption.AllDirectories))
             {
+                string fileName = Path.GetFileName(file);
+                if (System.Array.IndexOf(allowlist, fileName) >= 0) continue;
                 string src = File.ReadAllText(file);
                 foreach (string needle in forbidden)
                 {

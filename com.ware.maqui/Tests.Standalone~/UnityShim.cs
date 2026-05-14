@@ -7,7 +7,8 @@
 // folder ends with `~` per Unity's package import rules).
 //
 // Keep this file in lockstep with the actual UnityEngine surface Runtime/V2/
-// reaches for. Today: just Color32 (DrawRect/DrawText/DrawLine/DrawCircle).
+// reaches for. Today: Color32 (DrawRect/DrawText/DrawLine/DrawCircle) +
+// Texture2D (IImageLoader interface signature).
 
 namespace UnityEngine
 {
@@ -32,4 +33,11 @@ namespace UnityEngine
 
         public override string ToString() => $"RGBA({r}, {g}, {b}, {a})";
     }
+
+    /// <summary>
+    /// Shim of <c>UnityEngine.Texture2D</c>. Only the type identity is needed
+    /// by <c>Maqui.V2.Components.IImageLoader.Resolve</c>; no methods are
+    /// exercised headlessly (no real image loading runs outside Unity).
+    /// </summary>
+    public class Texture2D { }
 }

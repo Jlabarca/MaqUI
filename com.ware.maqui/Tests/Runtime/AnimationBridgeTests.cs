@@ -30,7 +30,7 @@ namespace Maqui.Tests
         [TearDown]
         public void TearDown()
         {
-            if (_go != null) Object.DestroyImmediate(_go);
+            if (_go != null) UnityEngine.Object.DestroyImmediate(_go);
             MaquiServices.Reset();
         }
 
@@ -54,7 +54,7 @@ namespace Maqui.Tests
             var task = _bridge.FadeAsync(cg, 1f, 0f);
             Assert.AreEqual(1f, cg.alpha);
 
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         [UnityTest]
@@ -72,7 +72,7 @@ namespace Maqui.Tests
             Assert.AreNotEqual(1f, cg.alpha);
 
             cts.Dispose();
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         [UnityTest]
@@ -95,7 +95,7 @@ namespace Maqui.Tests
             var task = _bridge.ScaleAsync(rt, Vector3.one, 0f);
             Assert.AreEqual(Vector3.one, rt.localScale);
 
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         [UnityTest]
@@ -113,7 +113,7 @@ namespace Maqui.Tests
             Assert.AreNotEqual(Vector3.one * 5f, rt.localScale);
 
             cts.Dispose();
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         [Test]
@@ -173,7 +173,7 @@ namespace Maqui.Tests
             var task = _bridge.FadeAsync(cg, 1f, 0f, Ease.OutCubic);
             Assert.AreEqual(1f, cg.alpha);
 
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         [UnityTest]
@@ -187,7 +187,7 @@ namespace Maqui.Tests
             var task = _bridge.ScaleAsync(rt, Vector3.one, 0f, Ease.InOutQuad);
             Assert.AreEqual(Vector3.one, rt.localScale);
 
-            Object.DestroyImmediate(targetGo);
+            UnityEngine.Object.DestroyImmediate(targetGo);
         }
 
         // --- Animation sequence tests ---
@@ -278,13 +278,12 @@ namespace Maqui.Tests
                     await UniTask.Yield(ct);
                 });
 
-            try
-            {
-                var task = seq.PlayAsync(cts.Token);
-                yield return null;
-                yield return null;
-            }
-            catch (OperationCanceledException)
+            // yield can't sit inside try-with-catch (CS1626); start the task,
+            // tick frames, then inspect post-hoc.
+            var task = seq.PlayAsync(cts.Token);
+            yield return null;
+            yield return null;
+            if (task.Status == Cysharp.Threading.Tasks.UniTaskStatus.Canceled)
             {
                 caughtCancellation = true;
             }

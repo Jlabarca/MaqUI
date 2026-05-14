@@ -24,12 +24,18 @@ namespace Maqui.V2
         // Layout leaves:
         Box = 10,
         Spacer = 11,
+        // ClipBoxBegin/End: container like Row/Column but with overflow:Hidden on the backend
+        // wrapper. Used by ScrollView for clip-rendering.
+        ClipBoxBegin = 12,
+        ClipBoxEnd = 13,
 
         // Draw primitives:
         DrawRect = 20,
         DrawText = 21,
         DrawLine = 22,
         DrawCircle = 23,
+        // P8.4: image draw. Backend resolves Text payload as the texture key via IImageLoader.
+        DrawImage = 24,
 
         // Interaction (recorded against a parent Node):
         OnClick = 30,
@@ -40,6 +46,10 @@ namespace Maqui.V2
         // Data scope:
         ScopeEnter = 40,
         ScopeExit = 41,
+
+        // P8.6: editable text field. Backend creates a UI Toolkit TextField; Text payload
+        // is the initial value; backend routes value changes to Gui.TextInputs[ScopePath].
+        TextInputField = 50,
     }
 
     /// <summary>

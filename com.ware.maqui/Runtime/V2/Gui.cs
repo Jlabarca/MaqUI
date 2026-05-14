@@ -29,6 +29,7 @@ namespace Maqui.V2
 
         private readonly AnimationStore _animations = new AnimationStore();
         private readonly InteractionState _interactions = new InteractionState();
+        private readonly TextInputStore _textInputs = new TextInputStore();
 
         /// <summary>P4: spring-damper animations keyed by user-supplied string.
         /// Lives on Gui (not in FrameBuffer) so values survive reconcile.</summary>
@@ -38,6 +39,12 @@ namespace Maqui.V2
         /// Unity-side adapter; read by <see cref="Node"/> extension methods.
         /// Reset every <see cref="BeginFrame"/>.</summary>
         public InteractionState Interactions => _interactions;
+
+        /// <summary>P8.6: per-key typed-text table. Written by the Unity-side
+        /// TextField value-changed callback; read by
+        /// <c>MaquiComponents.TextInput</c> to surface latest typed text.
+        /// Persists across frames (unlike <see cref="Interactions"/>).</summary>
+        public TextInputStore TextInputs => _textInputs;
 
         // --- Frame lifecycle ---
 
@@ -91,7 +98,7 @@ namespace Maqui.V2
 
         internal FrameBuffer Buffer => _frameBuffer;
 
-        internal string CurrentScopePath =>
+        public string CurrentScopePath =>
             _scopeStack.Count == 0 ? "/" : "/" + string.Join("/", ReverseStack(_scopeStack));
 
         // --- Layout primitives (1.3) ---
@@ -128,6 +135,22 @@ namespace Maqui.V2
             _frameBuffer.Record(new FrameOp(FrameOpKind.Box, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value));
             return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        /// <summary>P8.5: container Box with <c>overflow:Hidden</c> on the backend
+        /// wrapper. Used by <c>MaquiComponents.ScrollView</c> to clip content.
+        /// Pairs with <see cref="EndClipBox"/>.</summary>
+        public Node ClipBox(Size width = default, Size height = default)
+        {
+            int id = NewNodeId();
+            _frameBuffer.Record(new FrameOp(FrameOpKind.ClipBoxBegin, id, CurrentScopePath,
+                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        public void EndClipBox()
+        {
+            _frameBuffer.Record(new FrameOp(FrameOpKind.ClipBoxEnd, 0, CurrentScopePath));
         }
 
         public Node Spacer(Size size = default)
@@ -170,6 +193,34 @@ namespace Maqui.V2
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.DrawCircle, id, CurrentScopePath,
                 a: radius, color: color));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        /// <summary>P8.4: image leaf. Backend resolves <paramref name="textureKey"/>
+        /// via its <c>IImageLoader</c> (Unity-side; null-safe → placeholder).</summary>
+        public Node DrawImage(string textureKey, float width = 64f, float height = 64f)
+        {
+            int id = NewNodeId();
+            _frameBuffer.Record(new FrameOp(FrameOpKind.DrawImage, id, CurrentScopePath,
+                a: (float)SizeKind.Pixels, b: width,
+                c: (float)SizeKind.Pixels, d: height,
+                text: textureKey ?? string.Empty));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        /// <summary>P8.6: editable text field. Backend creates a UI Toolkit
+        /// TextField; value-changed callback routes through
+        /// <see cref="TextInputs"/> keyed by ScopePath + <paramref name="key"/>.</summary>
+        public Node TextInputField(string key, string initialValue, float height = 28f)
+        {
+            int id = NewNodeId();
+            string keyPayload = string.IsNullOrEmpty(key)
+                ? (CurrentScopePath + "/text")
+                : (CurrentScopePath + "/" + key);
+            _frameBuffer.Record(new FrameOp(FrameOpKind.TextInputField, id, CurrentScopePath,
+                a: (float)SizeKind.Pixels, b: 0f,
+                c: (float)SizeKind.Pixels, d: height,
+                text: keyPayload + "|" + (initialValue ?? string.Empty)));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 

@@ -54,18 +54,18 @@ namespace Maqui.V2.Components
 
             using (gui.EnterDataScope(key))
             {
-                var clipBox = gui.Box(
+                // ClipBox: container with style.overflow=Hidden applied by the
+                // backend. Content rendered inside is visually clipped to the
+                // viewport size.
+                gui.ClipBox(
                     width: default,
                     height: Size.Pixels(viewportHeight));
-                gui.DrawRect(new Color32(0, 0, 0, 0)); // transparent — clipping is what matters
-
-                gui.Column();
                 {
                     // Spacer to offset content by newOffset px (negative offset = scroll down = content moves up).
                     gui.Spacer(Size.Pixels(-newOffset));
                     drawContent?.Invoke();
                 }
-                gui.EndColumn();
+                gui.EndClipBox();
             }
 
             return newOffset;
