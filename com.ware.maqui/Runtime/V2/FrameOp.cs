@@ -8,8 +8,12 @@ namespace Maqui.V2
     /// <summary>
     /// Discriminates a <see cref="FrameOp"/>. Begin/End ops bracket containers so
     /// the linear FrameBuffer can be parsed back into a tree by the reconciler (P2).
+    ///
+    /// <para><b>Public</b> as of P2 — backends consume <see cref="FrameOp"/>s and
+    /// need to read their kind. <see cref="IBackend"/> is a public surface for
+    /// out-of-assembly backend authors.</para>
     /// </summary>
-    internal enum FrameOpKind : byte
+    public enum FrameOpKind : byte
     {
         // Layout containers (paired Begin/End):
         RowBegin = 1,
@@ -43,11 +47,12 @@ namespace Maqui.V2
     /// and scope ops all share this struct via a tagged payload — keeps the frame
     /// buffer a single contiguous List with no boxing.
     ///
-    /// <para>Internal because the P1 contract is "you call <see cref="Gui"/> methods,
-    /// you get back a <see cref="Node"/>" — callers never touch FrameOp directly.
-    /// Tests reach in via <c>internal</c> visibility (InternalsVisibleTo, set in 1.7).</para>
+    /// <para><b>Public</b> as of P2 — <see cref="IBackend"/> consumes FrameOps and
+    /// the interface is public so external backends (e.g., future PanGui backend)
+    /// can implement it. The fields read like a discriminated union; meaning
+    /// depends on <see cref="Kind"/>.</para>
     /// </summary>
-    internal readonly struct FrameOp
+    public readonly struct FrameOp
     {
         public FrameOpKind Kind { get; }
         public int NodeId { get; }

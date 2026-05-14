@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MaqUI v2 — HelloWorld reference. Hand-coded UI Toolkit parity target for
+  MAQUIV2.2.6 ReconcilerParityTests.
+
+  =====================================================================
+  MAQUIV2.2 — BLIND DRAFT. Operator must validate in Unity.
+  =====================================================================
+
+  v2's HelloWorld.cs (Column + DrawRect + DrawText) should reconcile to a
+  structurally + style-equivalent VisualElement tree to the one this UXML
+  builds. The parity test asserts equivalence.
+-->
+<UXML xmlns="UnityEngine.UIElements" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <VisualElement name="container" style="flex-direction: column;">
+        <VisualElement name="rect" style="background-color: rgb(180, 32, 32); width: 200px; height: 80px;" />
+        <Label name="label" text="Hello, world!" style="color: rgb(255, 255, 255); font-size: 20;" />
+    </VisualElement>
+</UXML>

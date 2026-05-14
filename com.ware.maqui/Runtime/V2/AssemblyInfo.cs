@@ -13,3 +13,4 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Maqui.V2.Tests")]
 [assembly: InternalsVisibleTo("Maqui.V2.Tests.Editor")]
+[assembly: InternalsVisibleTo("Maqui.V2.Tests.Runtime")]

@@ -48,6 +48,27 @@ namespace Maqui.V2
             _inFrame = false;
         }
 
+        // --- Reconciler (P2) ---
+
+        private readonly Reconciler _reconciler = new();
+
+        /// <summary>
+        /// Drive <paramref name="backend"/> with this frame's recorded ops.
+        /// Call after <see cref="EndFrame"/>. The driver pattern is:
+        /// <c>BeginFrame() → user component → EndFrame() → Render(backend)</c>.
+        ///
+        /// <para>Keeping reconcile out of <see cref="EndFrame"/> means the
+        /// buffer is inspectable between EndFrame and Render (tests rely on
+        /// this), and a single <see cref="Gui"/> can drive multiple backends
+        /// in the same frame if needed.</para>
+        /// </summary>
+        public void Render(IBackend backend)
+        {
+            if (_inFrame) throw new InvalidOperationException("Maqui.V2.Gui: Render called inside an open frame. Call EndFrame first.");
+            if (backend == null) throw new ArgumentNullException(nameof(backend));
+            _reconciler.Reconcile(_frameBuffer, backend);
+        }
+
         // --- Internal accessors for the reconciler (P2) and tests (1.7) ---
 
         internal FrameBuffer Buffer => _frameBuffer;

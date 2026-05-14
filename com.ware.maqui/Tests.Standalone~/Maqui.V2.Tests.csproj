@@ -59,6 +59,13 @@
       Unity. Re-emitting it here would assign it to the test assembly itself —
       harmless but noisy. Skip.
     -->
+    <Compile Remove="..\Runtime\V2\UIToolkitBackend.cs" />
+    <Compile Remove="..\Runtime\V2\GuiDriver.cs" />
+    <!--
+      UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
+      MonoBehaviour which the UnityShim does not cover. These compile only
+      inside Unity Editor (MAQUIV2.2 blind drafts).
+    -->
   </ItemGroup>
 
 </Project>
