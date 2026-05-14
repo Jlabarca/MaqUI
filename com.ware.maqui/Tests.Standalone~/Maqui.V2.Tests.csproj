@@ -52,6 +52,7 @@
   -->
   <ItemGroup>
     <Compile Include="..\Runtime\V2\*.cs" LinkBase="V2" />
+    <Compile Include="..\Tools\*.cs" LinkBase="Tools" />
     <Compile Remove="..\Runtime\V2\AssemblyInfo.cs" />
     <!--
       AssemblyInfo.cs has [InternalsVisibleTo("Maqui.V2.Tests")] which is
