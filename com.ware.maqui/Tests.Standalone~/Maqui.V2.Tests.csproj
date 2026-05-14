@@ -52,6 +52,7 @@
   -->
   <ItemGroup>
     <Compile Include="..\Runtime\V2\*.cs" LinkBase="V2" />
+    <Compile Include="..\Runtime\V2\Components\*.cs" LinkBase="V2/Components" />
     <Compile Include="..\Tools\*.cs" LinkBase="Tools" />
     <Compile Remove="..\Runtime\V2\AssemblyInfo.cs" />
     <!--
@@ -64,6 +65,8 @@
     <Compile Remove="..\Runtime\V2\GuiDriver.cs" />
     <Compile Remove="..\Runtime\V2\SdfBackend.cs" />
     <Compile Remove="..\Runtime\V2\UIToolkitInteractionAdapter.cs" />
+    <Compile Remove="..\Runtime\V2\Components\MaquiComponents.Image.cs" />
+    <Compile Remove="..\Runtime\V2\Components\MaquiComponents.TextInput.cs" />
     <!--
       UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
       MonoBehaviour which the UnityShim does not cover. These compile only
