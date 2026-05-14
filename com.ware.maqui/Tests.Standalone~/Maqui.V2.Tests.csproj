@@ -61,10 +61,15 @@
     -->
     <Compile Remove="..\Runtime\V2\UIToolkitBackend.cs" />
     <Compile Remove="..\Runtime\V2\GuiDriver.cs" />
+    <Compile Remove="..\Runtime\V2\SdfBackend.cs" />
     <!--
       UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
       MonoBehaviour which the UnityShim does not cover. These compile only
       inside Unity Editor (MAQUIV2.2 blind drafts).
+
+      SdfBackend references UnityEngine.Vector4 + MaterialPropertyBlock —
+      blind draft for MAQUIV2.3, not exercised by xUnit. Excluded same as
+      UIToolkitBackend until Unity Editor validation.
     -->
   </ItemGroup>
 
