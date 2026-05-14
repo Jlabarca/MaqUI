@@ -129,17 +129,17 @@ namespace Maqui.V2
                     if (element is Label label)
                     {
                         label.text = op.Text ?? string.Empty;
-                        label.style.color = op.Color;
+                        label.style.color = new StyleColor(op.Color);
                         if (op.FloatA > 0f) label.style.fontSize = op.FloatA;
                     }
                     break;
                 case FrameOpKind.DrawRect:
                 case FrameOpKind.Box:
-                    element.style.backgroundColor = op.Color;
+                    element.style.backgroundColor = new StyleColor(op.Color);
                     ApplySizeIfSet(element, in op);
                     break;
                 case FrameOpKind.DrawCircle:
-                    element.style.backgroundColor = op.Color;
+                    element.style.backgroundColor = new StyleColor(op.Color);
                     if (op.FloatA > 0f)
                     {
                         float d = op.FloatA * 2f;
@@ -152,7 +152,7 @@ namespace Maqui.V2
                     }
                     break;
                 case FrameOpKind.DrawLine:
-                    element.style.backgroundColor = op.Color;
+                    element.style.backgroundColor = new StyleColor(op.Color);
                     if (op.FloatA > 0f) element.style.height = op.FloatA;
                     break;
                 case FrameOpKind.RowBegin:

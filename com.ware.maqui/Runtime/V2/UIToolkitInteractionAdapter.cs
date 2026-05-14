@@ -93,14 +93,18 @@ namespace Maqui.V2
             _handleToCurrentScope.TryGetValue(handle, out string scope);
 
             // Enqueue for downstream consumers that want full event history.
+            // PointerEvent.Timestamp defaults to 0f — IPointerEvent only exposes
+            // deltaTime (since last event with same pointerId), not a wall-clock
+            // timestamp. Callers needing wall-clock should cast to EventBase and
+            // read its `timestamp` long, then convert; not done here since v0
+            // consumers (DragHandle sample, InteractableTests) don't need it.
             _queue.Enqueue(new PointerEvent(
                 kind,
                 nodeId,
                 scope ?? "/",
-                (float)evt.position.x,
-                (float)evt.position.y,
-                evt.button,
-                (float)evt.timestamp));
+                evt.position.x,
+                evt.position.y,
+                evt.button));
 
             // Update flags in-place — same-frame semantics.
             var state = _gui.Interactions;
