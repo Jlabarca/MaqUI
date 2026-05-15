@@ -49,26 +49,32 @@ namespace Maqui.V2.Tests.Runtime
             _gui.EndFrame();
             _gui.Render(_backend);
 
-            yield return null; // allow one layout pass
+            yield return null;
 
-            // Root should have one child (the Column).
+            // Asserts the reconciler+backend wrote the right style props.
+            // We check `style.X.value` (assigned) NOT `resolvedStyle.X`
+            // (post-layout) because the test root is not attached to a
+            // PanelSettings — resolvedStyle would be NaN without a layout
+            // pass. Parity is about applied styles; actual layout is
+            // covered by the Play-mode smoke screenshots.
+
             Assert.AreEqual(1, _root.childCount, "Root should contain exactly one Column container.");
 
             var column = _root[0];
-            Assert.AreEqual(FlexDirection.Column, column.resolvedStyle.flexDirection, "Container should be column-flex.");
+            Assert.AreEqual(FlexDirection.Column, column.style.flexDirection.value, "Container should be column-flex.");
             Assert.AreEqual(2, column.childCount, "Column should hold rect + label.");
 
             // Rect props.
             var rect = column[0];
             Assert.IsNotInstanceOf<Label>(rect, "First child should be a plain rect, not a Label.");
-            Assert.AreEqual(200f, rect.resolvedStyle.width, 0.5f, "Rect width should be 200px.");
-            Assert.AreEqual(80f, rect.resolvedStyle.height, 0.5f, "Rect height should be 80px.");
+            Assert.AreEqual(200f, rect.style.width.value.value, 0.5f, "Rect width should be 200px.");
+            Assert.AreEqual(80f, rect.style.height.value.value, 0.5f, "Rect height should be 80px.");
 
             // Label props.
             var label = column[1] as Label;
             Assert.NotNull(label, "Second child should be a Label.");
             Assert.AreEqual("Hello, world!", label.text);
-            Assert.AreEqual(20f, label.resolvedStyle.fontSize, 0.5f);
+            Assert.AreEqual(20f, label.style.fontSize.value.value, 0.5f);
         }
 
         [UnityTest]
