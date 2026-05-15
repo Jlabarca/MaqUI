@@ -39,52 +39,54 @@ namespace Maqui.V2.Tests.Runtime
         [UnityTest]
         public IEnumerator Adapter_PointerEnter_SetsHoverFlag()
         {
-            var go = new GameObject("test-adapter");
-            try
-            {
-                var doc = go.AddComponent<UIDocument>();
-                // Need a PanelSettings asset to render — left as operator
-                // setup: this test asserts adapter behavior, not panel paint.
-                yield return null;
+            // Uses the public DispatchEvent test seam on UIToolkitInteractionAdapter
+            // so we don't depend on a PanelSettings-backed UIDocument to deliver
+            // synthetic UI Toolkit events. The seam exercises the same flag-writing
+            // logic that real PointerEnterEvent callbacks route through.
+            yield return null;
 
-                var root = doc.rootVisualElement;
-                if (root == null) Assert.Inconclusive("UIDocument has no rootVisualElement — needs a PanelSettings asset in the scene/prefab.");
+            var root = new VisualElement { name = "test-root" };
+            var gui = new Gui();
+            var backend = new UIToolkitBackend(root, gui);
+            var adapter = new UIToolkitInteractionAdapter(gui, backend);
 
-                var gui = new Gui();
-                var backend = new UIToolkitBackend(root);
-                var adapter = new UIToolkitInteractionAdapter(gui, backend);
+            const int handle = 42;
+            const int nodeId = 7;
+            adapter.NoteHandleFrameOp(handle, new FrameOp(FrameOpKind.Box, nodeId, "/test"));
 
-                var el = new VisualElement { name = "hit-target", style = { width = 100, height = 100 } };
-                root.Add(el);
+            adapter.DispatchEvent(handle, PointerEventKind.Enter, 10f, 20f);
 
-                int handle = 42;
-                adapter.NoteHandleFrameOp(handle, new FrameOp(FrameOpKind.Box, nodeId: 7, scopePath: "/test"));
-                adapter.SubscribeIfNew(handle, el);
-
-                // Synthesize a PointerEnterEvent — Unity exposes EventBase.Get<T>().
-                using (var evt = PointerEnterEvent.GetPooled())
-                {
-                    evt.target = el;
-                    el.SendEvent(evt);
-                }
-
-                Assert.That(gui.Interactions.Has(7, NodeInteractionFlags.Hover),
-                    "PointerEnter should add Hover flag to the resolved NodeId.");
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-            }
+            Assert.That(gui.Interactions.Has(nodeId, NodeInteractionFlags.Hover),
+                "PointerEnter should add Hover flag to the resolved NodeId.");
+            Assert.AreEqual(1, adapter.Queue.Count, "PointerEvent should be enqueued.");
         }
 
         [UnityTest]
         public IEnumerator Adapter_PointerDownUp_SetsClickedThisFrame()
         {
-            // Operator: this test mirrors PointerEnter_SetsHoverFlag but with
-            // Down → Up sequence. Marked Inconclusive in this blind draft
-            // since UIDocument PanelSettings is required for event dispatch.
             yield return null;
-            Assert.Inconclusive("Blind draft — operator wires PanelSettings + completes.");
+
+            var root = new VisualElement { name = "test-root" };
+            var gui = new Gui();
+            var backend = new UIToolkitBackend(root, gui);
+            var adapter = new UIToolkitInteractionAdapter(gui, backend);
+
+            const int handle = 42;
+            const int nodeId = 7;
+            adapter.NoteHandleFrameOp(handle, new FrameOp(FrameOpKind.Box, nodeId, "/test"));
+
+            // Enter -> Down -> Up sequence over the same hovered element should
+            // produce ClickedThisFrame (and clear Active on Up).
+            adapter.DispatchEvent(handle, PointerEventKind.Enter, 10f, 20f);
+            adapter.DispatchEvent(handle, PointerEventKind.Down,  10f, 20f);
+            Assert.IsTrue(gui.Interactions.Has(nodeId, NodeInteractionFlags.Active),
+                "PointerDown should add Active flag.");
+
+            adapter.DispatchEvent(handle, PointerEventKind.Up,    10f, 20f);
+            Assert.IsFalse(gui.Interactions.Has(nodeId, NodeInteractionFlags.Active),
+                "PointerUp should clear Active flag.");
+            Assert.IsTrue(gui.Interactions.Has(nodeId, NodeInteractionFlags.ClickedThisFrame),
+                "PointerUp over a still-hovered element should add ClickedThisFrame.");
         }
     }
 }

@@ -89,6 +89,24 @@ namespace Maqui.V2
 
         private void OnEvent(int handle, IPointerEvent evt, PointerEventKind kind)
         {
+            // Real UI Toolkit path: delegate to the event-agnostic dispatcher.
+            DispatchEvent(handle, kind, evt.position.x, evt.position.y, evt.button);
+        }
+
+        /// <summary>
+        /// Test seam + headless dispatch path. Drives the same flag-writing
+        /// logic the real <c>OnEvent</c> uses, but without depending on
+        /// <see cref="IPointerEvent"/> — so PlayMode tests that can't attach a
+        /// PanelSettings-backed panel can still verify the adapter logic, and
+        /// non-UI-Toolkit input sources (raw mouse/touch readers) can route
+        /// events through the same code path.
+        ///
+        /// <para><paramref name="handle"/> must have been registered via
+        /// <see cref="NoteHandleFrameOp"/> first; otherwise the call is a
+        /// no-op (same semantics as <c>OnEvent</c>).</para>
+        /// </summary>
+        public void DispatchEvent(int handle, PointerEventKind kind, float x, float y, int button = 0)
+        {
             if (!_handleToCurrentNodeId.TryGetValue(handle, out int nodeId)) return;
             _handleToCurrentScope.TryGetValue(handle, out string scope);
 
@@ -98,13 +116,7 @@ namespace Maqui.V2
             // timestamp. Callers needing wall-clock should cast to EventBase and
             // read its `timestamp` long, then convert; not done here since v0
             // consumers (DragHandle sample, InteractableTests) don't need it.
-            _queue.Enqueue(new PointerEvent(
-                kind,
-                nodeId,
-                scope ?? "/",
-                evt.position.x,
-                evt.position.y,
-                evt.button));
+            _queue.Enqueue(new PointerEvent(kind, nodeId, scope ?? "/", x, y, button));
 
             // Update flags in-place — same-frame semantics.
             var state = _gui.Interactions;
