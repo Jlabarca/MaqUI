@@ -89,3 +89,9 @@ crashlytics-build.properties
 ehthumbs.db
 Thumbs.db
 desktop.ini
+
+# /handoff ephemeral session resumes - keep the dir + README, ignore the rest
+docs/handoffs/*
+!docs/handoffs/.gitkeep
+!docs/handoffs/README.md
+

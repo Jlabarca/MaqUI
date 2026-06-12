@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "methodology": "v0.1-57-g3874cc4",
+  "source": "waremoto/ghostdev@3874cc4",
+  "adopted": "2026-06-09",
+  "updated": "2026-06-12",
+  "components": {
+    "rules": 16,
+    "skills": 12,
+    "hooks": 3,
+    "statusline": true
+  },
+  "surface": [
+    "docs/DOCS-PROTOCOL.md",
+    ".claude/skills/",
+    ".claude/settings.example.json",
+    "bin/"
+  ]
+}
