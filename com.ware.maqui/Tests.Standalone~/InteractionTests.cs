@@ -283,7 +283,7 @@ namespace Maqui.V2.Tests
         }
 
         [Fact]
-        public void BeginFrame_ResetsInteractionFlags()
+        public void BeginFrame_PreservesHoverAcrossFrames()
         {
             var gui = new Gui();
             gui.BeginFrame();
@@ -291,10 +291,60 @@ namespace Maqui.V2.Tests
             gui.Interactions.SetFlags(node.Id, NodeInteractionFlags.Hover);
             gui.EndFrame();
 
-            // New frame — Reset should fire on BeginFrame.
+            // Hover is real pointer state owned by the adapter's Enter/Leave
+            // handlers — it must survive the frame boundary. A full Reset() here
+            // is what silently broke every click: Unity dispatches pointer events
+            // in Update(), before LateUpdate() runs the Gui frame, so clearing at
+            // BeginFrame wipes flags the current frame's Update() just set.
             gui.BeginFrame();
-            Assert.Equal(0, gui.Interactions.TrackedCount);
+            Assert.True(gui.Interactions.Has(node.Id, NodeInteractionFlags.Hover));
             gui.EndFrame();
+        }
+
+        [Fact]
+        public void EndFrame_ClearsTransientPulseFlagsButKeepsPointerState()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            var node = gui.Box();
+            gui.Interactions.SetFlags(node.Id,
+                NodeInteractionFlags.Hover
+                | NodeInteractionFlags.Active
+                | NodeInteractionFlags.ClickedThisFrame);
+            gui.EndFrame();
+
+            // One-shot pulses fire for exactly one frame...
+            Assert.False(gui.Interactions.Has(node.Id, NodeInteractionFlags.ClickedThisFrame));
+            // ...while Hover/Active persist until the adapter says otherwise.
+            Assert.True(gui.Interactions.Has(node.Id, NodeInteractionFlags.Hover));
+            Assert.True(gui.Interactions.Has(node.Id, NodeInteractionFlags.Active));
+        }
+
+        [Fact]
+        public void PointerDownThenUpNextFrame_RegistersClick()
+        {
+            // The exact cross-frame sequence the old BeginFrame-Reset broke:
+            // Down lands in frame 1's Update(), Up in frame 2's Update(). The
+            // Active flag set by Down MUST still be readable when Up is processed,
+            // otherwise `wasActive` is false and the click is silently dropped.
+            var gui = new Gui();
+            var state = gui.Interactions;
+
+            gui.BeginFrame();
+            var node = gui.Box();
+            gui.EndFrame();
+
+            // Frame 1 Update(): pointer enters + presses.
+            state.AddFlags(node.Id, NodeInteractionFlags.Hover);
+            state.AddFlags(node.Id, NodeInteractionFlags.Active);
+
+            gui.BeginFrame();
+            gui.Box();
+            gui.EndFrame();
+
+            // Frame 2 Update(): pointer releases over the same node.
+            bool wasActive = state.Has(node.Id, NodeInteractionFlags.Active);
+            Assert.True(wasActive, "Active must survive the frame boundary for Up to see it");
         }
     }
 }

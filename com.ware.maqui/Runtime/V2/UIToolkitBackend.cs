@@ -51,6 +51,17 @@ namespace Maqui.V2
             _imageLoader = imageLoader;
         }
 
+        /// <summary>
+        /// Wires pointer events into the backend's created elements. Must be
+        /// assigned before the first reconcile if callers want interaction
+        /// (Hover/Active/ClickedThisFrame) to work — without it, elements are
+        /// created/updated but no <see cref="UIToolkitInteractionAdapter"/>
+        /// callback is ever registered on them, so <c>Node.OnClick()</c> etc.
+        /// never fire. Settable after construction because the adapter's own
+        /// constructor takes this backend (construction-order chicken/egg).
+        /// </summary>
+        public UIToolkitInteractionAdapter Adapter { get; set; }
+
         public int Root => 0;
 
         public void BeginReconcile() { /* no-op v0 */ }
@@ -64,6 +75,13 @@ namespace Maqui.V2
 
             int handle = _nextHandle++;
             _elements[handle] = element;
+
+            if (Adapter != null)
+            {
+                Adapter.NoteHandleFrameOp(handle, in op);
+                Adapter.SubscribeIfNew(handle, element);
+            }
+
             return handle;
         }
 
@@ -71,6 +89,12 @@ namespace Maqui.V2
         {
             if (!_elements.TryGetValue(handle, out var element)) return;
             ApplyProps(element, in op);
+
+            if (Adapter != null)
+            {
+                Adapter.NoteHandleFrameOp(handle, in op);
+                Adapter.SubscribeIfNew(handle, element);
+            }
         }
 
         public void SetParent(int child, int parent, int siblingIndex)
@@ -107,6 +131,10 @@ namespace Maqui.V2
                 return;
             }
             if (element is Label) return;
+            // ScrollView's contentContainer differs from a plain Box's — pooling it
+            // back under FrameOpKind.Box would hand a stale scroll rig (scrollers,
+            // content viewport) to a caller expecting a flat leaf VisualElement.
+            if (element is ScrollView) return;
             Push(FrameOpKind.Box, element);
         }
 
@@ -126,6 +154,12 @@ namespace Maqui.V2
                     el.style.overflow = Overflow.Hidden;
                     return el;
                 }
+                case FrameOpKind.ScrollBegin:
+                    // Real UI Toolkit ScrollView — native wheel + drag-scrollbar,
+                    // no contentHeight math needed. Insert()/Add()/childCount all
+                    // route through its overridden contentContainer automatically,
+                    // so SetParent/Recycle below need no ScrollView-specific case.
+                    return new ScrollView(ScrollViewMode.Vertical);
                 case FrameOpKind.Box:
                 case FrameOpKind.Spacer:
                 case FrameOpKind.DrawRect:
@@ -158,6 +192,10 @@ namespace Maqui.V2
                 case FrameOpKind.Box:
                     element.style.backgroundColor = new StyleColor(op.Color);
                     ApplySizeIfSet(element, in op);
+                    // v0 default chrome: every filled rect gets a small corner
+                    // radius so stock components (Button, Toggle pill, ...)
+                    // don't read as bare UGUI-default flat rectangles.
+                    ApplyCornerRadius(element, Maqui.V2.Components.MaquiTheme.CornerRadius);
                     break;
                 case FrameOpKind.DrawCircle:
                     element.style.backgroundColor = new StyleColor(op.Color);
@@ -197,7 +235,24 @@ namespace Maqui.V2
                 case FrameOpKind.RowBegin:
                 case FrameOpKind.ColumnBegin:
                 case FrameOpKind.ClipBoxBegin:
+                case FrameOpKind.ScrollBegin:
                     ApplySizeIfSet(element, in op);
+                    ApplyAlignItems(element, op.AlignItems);
+                    if (op.MaxHeight > 0f) element.style.maxHeight = op.MaxHeight;
+                    // Container chrome: Color.a > 0 opts a container into a real
+                    // painted background + fixed padding, instead of callers
+                    // faking it with a sibling DrawRect (which can't sit "behind"
+                    // the container's own children in a flex layout).
+                    if (op.Color.a > 0)
+                    {
+                        element.style.backgroundColor = new StyleColor(op.Color);
+                        // Horizontal-only: a background-carrying container can be as short as a
+                        // 32px button, and top+bottom padding would eat most of that height.
+                        // Callers wanting vertical breathing room add their own Spacer().
+                        element.style.paddingLeft = Maqui.V2.Components.MaquiTheme.ContainerPadding;
+                        element.style.paddingRight = Maqui.V2.Components.MaquiTheme.ContainerPadding;
+                        ApplyCornerRadius(element, Maqui.V2.Components.MaquiTheme.PanelCornerRadius);
+                    }
                     break;
                 case FrameOpKind.Spacer:
                     ApplySizeIfSet(element, in op);
@@ -252,6 +307,30 @@ namespace Maqui.V2
 
         private readonly HashSet<TextField> _textFieldKeys = new();
 
+        // Maqui.V2.AlignItems -> UnityEngine.UIElements.Align. The Unity enum is
+        // fully qualified: this file is in namespace Maqui.V2 AND has a
+        // `using UnityEngine.UIElements`, and Maqui.V2 declares its own `Align`
+        // (the spec's float-constant class), so a bare `Align` here binds to the
+        // Maqui one and would not compile.
+        private static void ApplyAlignItems(VisualElement element, AlignItems align)
+        {
+            element.style.alignItems = align switch
+            {
+                AlignItems.Start => UnityEngine.UIElements.Align.FlexStart,
+                AlignItems.Center => UnityEngine.UIElements.Align.Center,
+                AlignItems.End => UnityEngine.UIElements.Align.FlexEnd,
+                _ => UnityEngine.UIElements.Align.Stretch,
+            };
+        }
+
+        private static void ApplyCornerRadius(VisualElement element, float radius)
+        {
+            element.style.borderTopLeftRadius = radius;
+            element.style.borderTopRightRadius = radius;
+            element.style.borderBottomLeftRadius = radius;
+            element.style.borderBottomRightRadius = radius;
+        }
+
         private static void ApplySizeIfSet(VisualElement element, in FrameOp op)
         {
             // Width: FloatA/B encode (kind, value); Height: FloatC/D.
@@ -262,6 +341,13 @@ namespace Maqui.V2
             SizeKind hKind = (SizeKind)(int)op.FloatC;
             if (wKind == SizeKind.Pixels && op.FloatB > 0f) element.style.width = op.FloatB;
             if (hKind == SizeKind.Pixels && op.FloatD > 0f) element.style.height = op.FloatD;
+            // Expand: grow to fill remaining space along the parent's main axis —
+            // e.g. a Spacer(Size.Expand()) between a title and a close button
+            // pushes the button to the far edge of a Row. Same underlying Yoga
+            // property regardless of which axis (width/height) carried the Expand
+            // kind, so either slot maps to flexGrow.
+            if (wKind == SizeKind.Expand) element.style.flexGrow = op.FloatB > 0f ? op.FloatB : 1f;
+            if (hKind == SizeKind.Expand) element.style.flexGrow = op.FloatD > 0f ? op.FloatD : 1f;
         }
 
         private VisualElement TryPop(FrameOpKind kind)

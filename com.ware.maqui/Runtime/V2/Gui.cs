@@ -56,10 +56,14 @@ namespace Maqui.V2
             _scopeStack.Clear();
             _nextNodeId = 0;
             _inFrame = true;
-            // P4: clear per-frame interaction flags so the Unity adapter (or
-            // test driver) re-emits Hover/Active/Focus each frame and per-frame
-            // flags like ClickedThisFrame don't leak forward.
-            _interactions.Reset();
+            // NOTE: does NOT reset _interactions here. Unity runs Update()
+            // (where UIToolkitInteractionAdapter dispatches pointer events)
+            // before LateUpdate() (where BeginFrame/BuildUI/EndFrame run) —
+            // clearing Hover/Active at frame-start would wipe out flags this
+            // very frame's Update() phase just set, before BuildUI ever reads
+            // them. See EndFrame's ClearTransientFlags call for the actual
+            // per-frame cleanup (one-shot pulse flags only, cleared AFTER
+            // this frame's UI code has read them).
         }
 
         /// <summary>End the current frame. P2 will hand the FrameBuffer to the reconciler here.</summary>
@@ -71,6 +75,11 @@ namespace Maqui.V2
                     $"Maqui.V2.Gui: EndFrame with {_scopeStack.Count} unclosed data scope(s). " +
                     "Did you forget to dispose a scope from EnterDataScope?");
             _inFrame = false;
+            // Clear one-shot pulse flags (ClickedThisFrame, DragStarted/EndedThisFrame)
+            // now that this frame's UI code has had its chance to read them. Hover/Active/
+            // Focus are left alone — see the comment in BeginFrame for why a full Reset()
+            // here would silently break every click.
+            _interactions.ClearTransientFlags();
         }
 
         // --- Reconciler (P2) ---
@@ -104,10 +113,23 @@ namespace Maqui.V2
         // --- Layout primitives (1.3) ---
 
         public Node Row(Size width = default, Size height = default)
+            => Row(width, height, background: default);
+
+        /// <summary>
+        /// Row with a background color painted on the container itself — the
+        /// horizontal twin of <see cref="Column(Size,Size,Color32)"/>. Same
+        /// semantics: alpha 0 means "no background" (a fully transparent panel
+        /// is never intentional), and an opaque color opts the container into
+        /// backend-painted chrome + padding instead of a sibling
+        /// <see cref="DrawRect"/> (which cannot sit behind a flex container's
+        /// own children).
+        /// </summary>
+        public Node Row(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.RowBegin, id, CurrentScopePath,
-                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value));
+                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
+                color: background, alignItems: alignItems));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -117,10 +139,22 @@ namespace Maqui.V2
         }
 
         public Node Column(Size width = default, Size height = default)
+            => Column(width, height, background: default);
+
+        /// <summary>
+        /// Column with a background color painted on the container itself
+        /// (not a sibling <see cref="DrawRect"/>) plus a small fixed padding —
+        /// real panel chrome instead of the sibling-rect hack. Background
+        /// defaults to transparent (no visual change) when omitted; alpha 0
+        /// means "no background" since a fully transparent panel is never
+        /// intentional.
+        /// </summary>
+        public Node Column(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.ColumnBegin, id, CurrentScopePath,
-                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value));
+                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
+                color: background, alignItems: alignItems));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -151,6 +185,45 @@ namespace Maqui.V2
         public void EndClipBox()
         {
             _frameBuffer.Record(new FrameOp(FrameOpKind.ClipBoxEnd, 0, CurrentScopePath));
+        }
+
+        /// <summary>
+        /// Vertically scrollable container backed by a real UI Toolkit
+        /// <c>ScrollView</c> (native wheel + drag-scrollbar handling). Unlike
+        /// <see cref="Components.MaquiComponents.ScrollView"/> (the pending-delta
+        /// immediate-mode variant), this needs no caller-supplied content height —
+        /// the backend's own Yoga layout measures it. Give it a fixed
+        /// <paramref name="height"/> in pixels; content taller than that scrolls.
+        /// Pairs with <see cref="EndScrollBox"/>.
+        /// </summary>
+        public Node ScrollBox(Size width = default, Size height = default)
+            => ScrollBox(width, height, background: default);
+
+        /// <summary>
+        /// <see cref="ScrollBox(Size,Size)"/> with a background painted on the
+        /// scroll container — same alpha-0-means-none semantics as
+        /// <see cref="Column(Size,Size,Color32)"/>. Lets a scroll region read as
+        /// a recessed well instead of blending into the panel behind it.
+        ///
+        /// <para><paramref name="maxHeight"/> (pixels; 0 = unset) is the preferred
+        /// way to bound a scroll region. Prefer it over a fixed
+        /// <paramref name="height"/>: a fixed height reserves the whole box even
+        /// when the content is a single collapsed row, leaving a dead well of
+        /// background; a max height hugs the content and only starts scrolling once
+        /// content actually exceeds it.</para>
+        /// </summary>
+        public Node ScrollBox(Size width, Size height, Color32 background, float maxHeight = 0f)
+        {
+            int id = NewNodeId();
+            _frameBuffer.Record(new FrameOp(FrameOpKind.ScrollBegin, id, CurrentScopePath,
+                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
+                color: background, maxHeight: maxHeight));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        public void EndScrollBox()
+        {
+            _frameBuffer.Record(new FrameOp(FrameOpKind.ScrollEnd, 0, CurrentScopePath));
         }
 
         public Node Spacer(Size size = default)
@@ -306,6 +379,28 @@ namespace Maqui.V2
         }
 
         // --- Helpers ---
+
+        /// <summary>
+        /// The <see cref="Node.Id"/> the next node-creating call on this Gui will
+        /// receive. Lets a component read its own interaction flags (hover/press)
+        /// <i>before</i> the call that creates the node — needed when the styling
+        /// is an argument to the creating call itself, e.g.
+        /// <c>Column(w, h, background: hovered ? Hover : Base)</c>, where there is
+        /// no Node to query yet.
+        ///
+        /// <para>Safe because node ids are assigned sequentially from
+        /// <see cref="BeginFrame"/> and the UI is rebuilt in a stable order every
+        /// frame, so id N denotes the same logical node across frames — the same
+        /// assumption <see cref="Interactions"/> already relies on (the adapter
+        /// writes flags keyed by the NodeId it saw last frame). Reading flags for
+        /// a not-yet-created node therefore yields that node's state as of the
+        /// last pointer event, which is exactly the one-frame-late feedback
+        /// immediate-mode UIs expect.</para>
+        ///
+        /// <para>Only valid inside a frame, and only immediately before the
+        /// creating call — any intervening node-creating call invalidates it.</para>
+        /// </summary>
+        public int PeekNextNodeId() => _nextNodeId + 1;
 
         private int NewNodeId() => ++_nextNodeId;
 

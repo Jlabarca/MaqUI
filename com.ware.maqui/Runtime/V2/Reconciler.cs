@@ -78,12 +78,14 @@ namespace Maqui.V2
                 case FrameOpKind.RowBegin:
                 case FrameOpKind.ColumnBegin:
                 case FrameOpKind.ClipBoxBegin:
+                case FrameOpKind.ScrollBegin:
                 case FrameOpKind.Box:
                 {
                     int handle = ReconcileLeaf(op, backend);
                     if (op.Kind == FrameOpKind.RowBegin
                         || op.Kind == FrameOpKind.ColumnBegin
-                        || op.Kind == FrameOpKind.ClipBoxBegin)
+                        || op.Kind == FrameOpKind.ClipBoxBegin
+                        || op.Kind == FrameOpKind.ScrollBegin)
                     {
                         // Push as new parent; reset sibling index counter for children.
                         _parentStack.Push(handle);
@@ -95,6 +97,7 @@ namespace Maqui.V2
                 case FrameOpKind.RowEnd:
                 case FrameOpKind.ColumnEnd:
                 case FrameOpKind.ClipBoxEnd:
+                case FrameOpKind.ScrollEnd:
                     if (_parentStack.Count > 1) // never pop the backend root
                     {
                         _parentStack.Pop();

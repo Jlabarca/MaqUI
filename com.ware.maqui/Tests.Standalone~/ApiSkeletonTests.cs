@@ -73,6 +73,81 @@ namespace Maqui.V2.Tests
         }
 
         [Fact]
+        public void Containers_DefaultToTransparentAndStretch()
+        {
+            // alpha 0 == "no background"; Stretch is flex's own default. Both must
+            // stay the default so the no-arg overloads are behaviour-preserving.
+            _gui.Row();
+            _gui.Column();
+            _gui.ScrollBox();
+
+            foreach (var op in _gui.Buffer.Ops)
+            {
+                Assert.Equal(0, op.Color.a);
+                Assert.Equal(AlignItems.Stretch, op.AlignItems);
+            }
+        }
+
+        [Fact]
+        public void Row_CarriesBackgroundAndAlignItems()
+        {
+            _gui.Row(Size.Pixels(300), Size.Pixels(36),
+                new UnityEngine.Color32(10, 20, 30, 255), AlignItems.Center);
+
+            var op = _gui.Buffer.Ops[0];
+            Assert.Equal(FrameOpKind.RowBegin, op.Kind);
+            Assert.Equal(new UnityEngine.Color32(10, 20, 30, 255), op.Color);
+            Assert.Equal(AlignItems.Center, op.AlignItems);
+        }
+
+        [Fact]
+        public void Column_CarriesBackgroundAndAlignItems()
+        {
+            _gui.Column(Size.Pixels(300), default,
+                new UnityEngine.Color32(1, 2, 3, 255), AlignItems.End);
+
+            var op = _gui.Buffer.Ops[0];
+            Assert.Equal(FrameOpKind.ColumnBegin, op.Kind);
+            Assert.Equal(new UnityEngine.Color32(1, 2, 3, 255), op.Color);
+            Assert.Equal(AlignItems.End, op.AlignItems);
+        }
+
+        [Fact]
+        public void ScrollBox_CarriesBackground()
+        {
+            _gui.ScrollBox(default, Size.Pixels(420), new UnityEngine.Color32(4, 5, 6, 255));
+
+            var op = _gui.Buffer.Ops[0];
+            Assert.Equal(FrameOpKind.ScrollBegin, op.Kind);
+            Assert.Equal(new UnityEngine.Color32(4, 5, 6, 255), op.Color);
+            Assert.Equal(SizeKind.Pixels, (SizeKind)(int)op.FloatC);
+            Assert.Equal(420f, op.FloatD, 3);
+        }
+
+        [Fact]
+        public void ScrollBox_MaxHeightIsCarriedAndLeavesHeightUnset()
+        {
+            // A max-height scroll region must NOT also pin a fixed height — that's the
+            // whole point (hug content, cap at the max, scroll past it). If both were
+            // set the well would reserve its full box around tiny content.
+            _gui.ScrollBox(default, default, new UnityEngine.Color32(4, 5, 6, 255), maxHeight: 420f);
+
+            var op = _gui.Buffer.Ops[0];
+            Assert.Equal(420f, op.MaxHeight, 3);
+            Assert.NotEqual(SizeKind.Pixels, (SizeKind)(int)op.FloatC);
+        }
+
+        [Fact]
+        public void MaxHeight_DefaultsToUnset()
+        {
+            _gui.ScrollBox();
+            _gui.Row();
+            _gui.Column();
+            foreach (var op in _gui.Buffer.Ops)
+                Assert.Equal(0f, op.MaxHeight, 3);
+        }
+
+        [Fact]
         public void Spacer_RecordsSpacer()
         {
             var n = _gui.Spacer(Size.Expand());

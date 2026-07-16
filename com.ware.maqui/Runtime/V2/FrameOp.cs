@@ -28,6 +28,11 @@ namespace Maqui.V2
         // wrapper. Used by ScrollView for clip-rendering.
         ClipBoxBegin = 12,
         ClipBoxEnd = 13,
+        // ScrollBegin/End: container like Row/Column but the backend mints a real
+        // UI Toolkit ScrollView (native wheel + drag-scrollbar handling, no
+        // contentHeight measurement needed from the caller). See Gui.ScrollBox.
+        ScrollBegin = 14,
+        ScrollEnd = 15,
 
         // Draw primitives:
         DrawRect = 20,
@@ -50,6 +55,25 @@ namespace Maqui.V2
         // P8.6: editable text field. Backend creates a UI Toolkit TextField; Text payload
         // is the initial value; backend routes value changes to Gui.TextInputs[ScopePath].
         TextInputField = 50,
+    }
+
+    /// <summary>
+    /// Cross-axis alignment of a container's CHILDREN (Yoga <c>alignItems</c>).
+    /// <see cref="Stretch"/> is 0 so it stays the default for every op that
+    /// doesn't set one — matching flex's own default and keeping the payload
+    /// backward-compatible.
+    ///
+    /// <para>Distinct from <see cref="Align"/>, which per the spec is a float
+    /// 0..1 describing how a node aligns ITSELF within its parent. This is an
+    /// enum because Yoga's alignItems is genuinely categorical — "stretch" is
+    /// not a point on the 0..1 line.</para>
+    /// </summary>
+    public enum AlignItems : byte
+    {
+        Stretch = 0,
+        Start = 1,
+        Center = 2,
+        End = 3,
     }
 
     /// <summary>
@@ -83,14 +107,29 @@ namespace Maqui.V2
         /// <summary>String payload (used by DrawText, ScopeEnter/Exit key).</summary>
         public string Text { get; }
 
+        /// <summary>Cross-axis alignment of this container's children. Only read
+        /// for container Begin ops (Row/Column/ClipBox/Scroll); ignored by leaves.
+        /// FloatA-D are fully spoken for by the width/height (kind, value) pairs,
+        /// hence a dedicated field rather than another float slot.</summary>
+        public AlignItems AlignItems { get; }
+
+        /// <summary>Max height in pixels for a container; 0 = unset. Distinct from a
+        /// fixed height: the container hugs its content and only caps (and, for a
+        /// ScrollBox, starts scrolling) once content exceeds this. A fixed height
+        /// would instead reserve the full box even when the content is tiny.</summary>
+        public float MaxHeight { get; }
+
         public FrameOp(
             FrameOpKind kind,
             int nodeId,
             string scopePath,
             float a = 0f, float b = 0f, float c = 0f, float d = 0f,
             Color32 color = default,
-            string text = null)
+            string text = null,
+            AlignItems alignItems = AlignItems.Stretch,
+            float maxHeight = 0f)
         {
+            MaxHeight = maxHeight;
             Kind = kind;
             NodeId = nodeId;
             ScopePath = scopePath;
@@ -100,6 +139,7 @@ namespace Maqui.V2
             FloatD = d;
             Color = color;
             Text = text;
+            AlignItems = alignItems;
         }
 
         public override string ToString()

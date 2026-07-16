@@ -81,14 +81,52 @@ namespace Maqui.V2
         public int TrackedCount => _flags.Count;
 
         /// <summary>
-        /// Reset all flags. Called by <see cref="Gui.BeginFrame"/> after the
-        /// previous frame's pointer queue has been drained — so per-frame
-        /// flags (Click, DragStart, DragEnd) don't carry forward, and the
-        /// adapter freshly re-emits Hover/Active/Focus on each frame.
+        /// Reset all flags, including persistent ones (Hover/Active/Focus).
+        /// Exposed for tests; NOT called per-frame by <see cref="Gui"/> — see
+        /// <see cref="ClearTransientFlags"/> for why.
         /// </summary>
         public void Reset()
         {
             _flags.Clear();
+        }
+
+        private const NodeInteractionFlags TransientMask =
+            NodeInteractionFlags.ClickedThisFrame
+            | NodeInteractionFlags.DragStartedThisFrame
+            | NodeInteractionFlags.DragEndedThisFrame;
+
+        private static readonly List<int> s_ScratchKeys = new(capacity: 32);
+
+        /// <summary>
+        /// Clear only the one-shot per-frame pulse flags (ClickedThisFrame,
+        /// DragStarted/EndedThisFrame). Called by <see cref="Gui.EndFrame"/>
+        /// AFTER this frame's UI code has had a chance to read them.
+        ///
+        /// <para>Deliberately leaves Hover/Active/Focus untouched — those are
+        /// real pointer state, toggled only by the adapter's Enter/Leave/
+        /// Down/Up handlers, and must survive across frames. The real-world
+        /// adapter (<c>UIToolkitInteractionAdapter</c>) is event-driven, not
+        /// polling — it does NOT "re-emit" Hover/Active every frame the way
+        /// an earlier design assumed. Unity runs Update() (where pointer
+        /// events dispatch) before LateUpdate() (where Gui frames run), so a
+        /// full <see cref="Reset"/> at frame-start would wipe a PointerDown's
+        /// Active flag before the next frame's PointerUp could ever read
+        /// <c>wasActive</c> — silently breaking every click. Confirmed via
+        /// live diagnostic: Down/Up events fired correctly but clicks never
+        /// registered, until this was split out.</para>
+        /// </summary>
+        public void ClearTransientFlags()
+        {
+            s_ScratchKeys.Clear();
+            foreach (var kv in _flags)
+            {
+                if ((kv.Value & TransientMask) != NodeInteractionFlags.None)
+                    s_ScratchKeys.Add(kv.Key);
+            }
+            for (int i = 0; i < s_ScratchKeys.Count; i++)
+            {
+                ClearFlags(s_ScratchKeys[i], TransientMask);
+            }
         }
     }
 }
