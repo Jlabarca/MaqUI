@@ -30,6 +30,7 @@ namespace Maqui.V2
         private readonly AnimationStore _animations = new AnimationStore();
         private readonly InteractionState _interactions = new InteractionState();
         private readonly TextInputStore _textInputs = new TextInputStore();
+        private readonly FloatInputStore _floatInputs = new FloatInputStore();
 
         /// <summary>P4: spring-damper animations keyed by user-supplied string.
         /// Lives on Gui (not in FrameBuffer) so values survive reconcile.</summary>
@@ -45,6 +46,11 @@ namespace Maqui.V2
         /// <c>MaquiComponents.TextInput</c> to surface latest typed text.
         /// Persists across frames (unlike <see cref="Interactions"/>).</summary>
         public TextInputStore TextInputs => _textInputs;
+
+        /// <summary>WL.0: per-key numeric table, written by native value-emitting
+        /// controls (Slider) and read by their components. Same persistence rules as
+        /// <see cref="TextInputs"/>.</summary>
+        public FloatInputStore FloatInputs => _floatInputs;
 
         // --- Frame lifecycle ---
 
@@ -298,6 +304,42 @@ namespace Maqui.V2
                 a: (float)SizeKind.Pixels, b: 0f,
                 c: (float)SizeKind.Pixels, d: height,
                 text: keyPayload + "|" + (initialValue ?? string.Empty)));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        /// <summary>Store key for a value-emitting control. Same shape as
+        /// <see cref="TextInputField"/>'s so both stores are addressed identically —
+        /// a mismatch here is invisible until a value silently fails to come back.</summary>
+        public string InputKey(string key, string fallbackSuffix)
+            => string.IsNullOrEmpty(key)
+                ? (CurrentScopePath + "/" + fallbackSuffix)
+                : (CurrentScopePath + "/" + key);
+
+        /// <summary>WL.0: native slider. The backend mints a real UI Toolkit
+        /// <c>Slider</c> and routes its value into <see cref="FloatInputs"/> under
+        /// <see cref="InputKey"/>. The framework owns dragging, so there is no
+        /// pointer math here to get wrong (the hand-drawn predecessor computed its
+        /// value from its own value and could never move).</summary>
+        public Node SliderField(string key, float value, float min, float max)
+        {
+            int id = NewNodeId();
+            _frameBuffer.Record(new FrameOp(FrameOpKind.SliderField, id, CurrentScopePath,
+                a: value, b: min, c: max,
+                text: InputKey(key, "slider")));
+            return new Node(this, id, _frameBuffer.Count - 1);
+        }
+
+        /// <summary>WL.0: native dropdown. Options are pipe-joined into the text
+        /// payload after the store key; the backend splits them and routes the chosen
+        /// option into <see cref="TextInputs"/>.</summary>
+        public Node DropdownField(string key, string selected, params string[] options)
+        {
+            int id = NewNodeId();
+            string joined = options == null || options.Length == 0
+                ? string.Empty
+                : string.Join("|", options);
+            _frameBuffer.Record(new FrameOp(FrameOpKind.DropdownField, id, CurrentScopePath,
+                text: InputKey(key, "dropdown") + "|" + (selected ?? string.Empty) + "|" + joined));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 

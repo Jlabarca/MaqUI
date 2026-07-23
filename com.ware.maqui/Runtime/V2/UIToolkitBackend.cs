@@ -175,6 +175,13 @@ namespace Maqui.V2
                     return new Label();
                 case FrameOpKind.TextInputField:
                     return new TextField();
+                // WL.0: native value-emitting controls. UI Toolkit owns the drag /
+                // menu interaction; Maqui only records the desired value and reads
+                // back what the user did.
+                case FrameOpKind.SliderField:
+                    return new Slider();
+                case FrameOpKind.DropdownField:
+                    return new DropdownField();
                 default:
                     return new VisualElement();
             }
@@ -243,6 +250,12 @@ namespace Maqui.V2
                     {
                         ApplyTextFieldProps(tf, op.Text);
                     }
+                    break;
+                case FrameOpKind.SliderField:
+                    if (element is Slider slider) ApplySliderProps(slider, in op);
+                    break;
+                case FrameOpKind.DropdownField:
+                    if (element is DropdownField dropdown) ApplyDropdownProps(dropdown, op.Text);
                     break;
                 case FrameOpKind.RowBegin:
                 case FrameOpKind.ColumnBegin:
@@ -318,6 +331,87 @@ namespace Maqui.V2
         }
 
         private readonly HashSet<TextField> _textFieldKeys = new();
+        private readonly HashSet<VisualElement> _boundValueControls = new();
+
+        /// <summary>WL.0: bind a native <c>Slider</c> to <see cref="Gui.FloatInputs"/>.
+        /// Payload is the store key; FloatA/B/C are value/min/max.
+        ///
+        /// <para>Mirrors <see cref="ApplyTextFieldProps"/> exactly: subscribe once,
+        /// then re-sync from the store WITHOUT notifying. Re-syncing with a notify
+        /// would echo the store's own value back through the callback every frame and
+        /// fight the user mid-drag.</para></summary>
+        private void ApplySliderProps(Slider slider, in FrameOp op)
+        {
+            string storeKey = op.Text;
+            float value = op.FloatA, min = op.FloatB, max = op.FloatC;
+
+            if (max > min)
+            {
+                slider.lowValue = min;
+                slider.highValue = max;
+            }
+
+            if (!_boundValueControls.Contains(slider))
+            {
+                _boundValueControls.Add(slider);
+                if (_gui != null && storeKey != null && !_gui.FloatInputs.Has(storeKey))
+                    _gui.FloatInputs.Set(storeKey, value);
+
+                slider.SetValueWithoutNotify(_gui != null && storeKey != null
+                    ? _gui.FloatInputs.Get(storeKey, value)
+                    : value);
+
+                if (_gui != null && storeKey != null)
+                {
+                    var localKey = storeKey;
+                    slider.RegisterValueChangedCallback(evt => _gui.FloatInputs.Set(localKey, evt.newValue));
+                }
+            }
+            else if (_gui != null && storeKey != null)
+            {
+                float cur = _gui.FloatInputs.Get(storeKey, value);
+                if (!Mathf.Approximately(slider.value, cur)) slider.SetValueWithoutNotify(cur);
+            }
+        }
+
+        /// <summary>WL.0: bind a native <c>DropdownField</c> to
+        /// <see cref="Gui.TextInputs"/>. Payload is <c>key|selected|opt1|opt2…</c>.</summary>
+        private void ApplyDropdownProps(DropdownField dropdown, string payload)
+        {
+            if (string.IsNullOrEmpty(payload)) return;
+
+            var parts = payload.Split('|');
+            string storeKey = parts[0];
+            string selected = parts.Length > 1 ? parts[1] : string.Empty;
+            var options = parts.Skip(2).Where(p => !string.IsNullOrEmpty(p)).ToList();
+
+            // Rebuild choices only when they actually differ — reassigning the list
+            // every frame would reset the popup's own selection state.
+            if (options.Count > 0 && (dropdown.choices == null || !dropdown.choices.SequenceEqual(options)))
+                dropdown.choices = options;
+
+            if (!_boundValueControls.Contains(dropdown))
+            {
+                _boundValueControls.Add(dropdown);
+                if (_gui != null && storeKey != null && !_gui.TextInputs.Has(storeKey))
+                    _gui.TextInputs.Set(storeKey, selected);
+
+                dropdown.SetValueWithoutNotify(_gui != null && storeKey != null
+                    ? _gui.TextInputs.Get(storeKey, selected)
+                    : selected);
+
+                if (_gui != null && storeKey != null)
+                {
+                    var localKey = storeKey;
+                    dropdown.RegisterValueChangedCallback(evt => _gui.TextInputs.Set(localKey, evt.newValue));
+                }
+            }
+            else if (_gui != null && storeKey != null)
+            {
+                var cur = _gui.TextInputs.Get(storeKey, selected);
+                if (dropdown.value != cur) dropdown.SetValueWithoutNotify(cur);
+            }
+        }
 
         /// <summary>Last USS class this backend put on each element. Elements are
         /// pooled and reused across frames, so applying a class without removing the

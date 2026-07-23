@@ -55,6 +55,14 @@ namespace Maqui.V2
         // P8.6: editable text field. Backend creates a UI Toolkit TextField; Text payload
         // is the initial value; backend routes value changes to Gui.TextInputs[ScopePath].
         TextInputField = 50,
+
+        // WL.0: native value-emitting controls. The backend mints the host
+        // framework's own Slider/Dropdown and routes value changes into
+        // Gui.FloatInputs / Gui.TextInputs — the same swap pattern TextInputField
+        // already uses. Replaces hand-drawn widgets that had to re-derive
+        // interaction from pointer geometry (and got it wrong).
+        SliderField = 51,
+        DropdownField = 52,
     }
 
     /// <summary>

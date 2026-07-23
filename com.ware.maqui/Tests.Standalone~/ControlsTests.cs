@@ -277,24 +277,116 @@ namespace Maqui.V2.Tests
             Assert.Equal(0.5f, v, 3);
         }
 
+        // WL.0 — the native-swap contract. The old tests here pinned
+        // `pointerXOverride`, a parameter that existed ONLY because the component
+        // tried to do its own pointer math (and got it wrong: in Unity the real
+        // pointer X was never read). The control is now a real UI Toolkit Slider, so
+        // what's worth pinning is the op + store round-trip, not fake pointer input.
+
         [Fact]
-        public void Slider_PointerOverride_UpdatesValueWithoutDrag()
+        public void Slider_RecordsSliderFieldOp_WithValueMinMaxAndStoreKey()
         {
             var gui = new Gui();
             gui.BeginFrame();
-            float v = gui.Slider("vol", value: 0f, min: 0f, max: 100f, trackWidth: 200f, pointerXOverride: 150f);
+            gui.Slider("vol", value: 42f, min: 0f, max: 100f);
             gui.EndFrame();
-            Assert.Equal(75f, v, 1);
+
+            var op = gui.Buffer.Ops[0];
+            Assert.Equal(FrameOpKind.SliderField, op.Kind);
+            Assert.Equal(42f, op.FloatA, 3);
+            Assert.Equal(0f, op.FloatB, 3);
+            Assert.Equal(100f, op.FloatC, 3);
+            // Root scope path is "/", so keys read "//vol" — the same shape
+            // TextInput already produces. Both sides must agree exactly or a value
+            // silently never comes back.
+            Assert.Equal("//vol", op.Text);
         }
 
         [Fact]
-        public void Slider_NoInteraction_ReturnsValueUnchanged()
+        public void Slider_NoStoredValue_ReturnsValueUnchanged()
         {
             var gui = new Gui();
             gui.BeginFrame();
             float v = gui.Slider("vol", value: 42f, min: 0f, max: 100f);
             gui.EndFrame();
             Assert.Equal(42f, v, 3);
+        }
+
+        /// <summary>What the backend does when the user drags: writes the new value
+        /// into FloatInputs. The component must surface THAT, not its argument —
+        /// this is the round-trip the old implementation could never complete.</summary>
+        [Fact]
+        public void Slider_StoredValue_WinsOverArgument()
+        {
+            var gui = new Gui();
+            gui.FloatInputs.Set("//vol", 75f);      // stand-in for the native control's callback
+
+            gui.BeginFrame();
+            float v = gui.Slider("vol", value: 0f, min: 0f, max: 100f);
+            gui.EndFrame();
+
+            Assert.Equal(75f, v, 3);
+        }
+
+        [Fact]
+        public void Slider_KeyIsScoped_SoTwoScopesDoNotShareAValue()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            gui.EnterDataScope("a");
+            gui.Slider("vol", value: 1f, min: 0f, max: 10f);
+            gui.ExitDataScope();
+            gui.EnterDataScope("b");
+            gui.Slider("vol", value: 2f, min: 0f, max: 10f);
+            gui.ExitDataScope();
+            gui.EndFrame();
+
+            var keys = gui.Buffer.Ops
+                .Where(o => o.Kind == FrameOpKind.SliderField)
+                .Select(o => o.Text)
+                .ToList();
+            Assert.Equal(2, keys.Distinct().Count());
+        }
+    }
+
+    public class DropdownTests
+    {
+        [Fact]
+        public void Dropdown_RecordsKeySelectedAndOptions()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            gui.Dropdown("mode", "Fast", "Fast", "Slow", "Off");
+            gui.EndFrame();
+
+            var op = gui.Buffer.Ops[0];
+            Assert.Equal(FrameOpKind.DropdownField, op.Kind);
+            Assert.Equal("//mode|Fast|Fast|Slow|Off", op.Text);
+        }
+
+        [Fact]
+        public void Dropdown_StoredSelection_WinsOverArgument()
+        {
+            var gui = new Gui();
+            gui.TextInputs.Set("//mode", "Slow");
+
+            gui.BeginFrame();
+            string v = gui.Dropdown("mode", "Fast", "Fast", "Slow", "Off");
+            gui.EndFrame();
+
+            Assert.Equal("Slow", v);
+        }
+
+        [Fact]
+        public void Dropdown_NoOptions_StillRecordsWithoutThrowing()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            string v = gui.Dropdown("empty", "x");
+            gui.EndFrame();
+
+            Assert.Equal("x", v);
+            Assert.Equal(FrameOpKind.DropdownField, gui.Buffer.Ops[0].Kind);
         }
     }
 
