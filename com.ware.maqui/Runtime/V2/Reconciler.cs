@@ -112,6 +112,12 @@ namespace Maqui.V2
                 case FrameOpKind.DrawCircle:
                 case FrameOpKind.DrawImage:
                 case FrameOpKind.TextInputField:
+                // Native value-emitting controls are leaves too. Omitting them here
+                // is silent: the op records fine and every op-level test passes, but
+                // the reconciler never asks the backend for an element, so the
+                // control simply never appears on screen.
+                case FrameOpKind.SliderField:
+                case FrameOpKind.DropdownField:
                     ReconcileLeaf(op, backend);
                     break;
 

@@ -377,6 +377,32 @@ namespace Maqui.V2.Tests
             Assert.Equal("Slow", v);
         }
 
+        /// <summary>Regression: every control op must reach the BACKEND, not just the
+        /// frame buffer. Slider/Dropdown were originally missing from the reconciler's
+        /// leaf list, so the ops recorded correctly, every op-level assertion passed,
+        /// and the controls still never appeared on screen. Recording is not
+        /// rendering — assert the element gets created.</summary>
+        [Fact]
+        public void SliderAndDropdown_AreMaterializedByTheReconciler()
+        {
+            var gui = new Gui();
+            var backend = new TestBackend();
+
+            gui.BeginFrame();
+            gui.Slider("vol", 1f, 0f, 10f);
+            gui.Dropdown("mode", "A", "A", "B");
+            gui.EndFrame();
+            gui.Render(backend);
+
+            var created = backend.Events
+                .Where(e => e.Kind == BackendEventKind.CreateElement)
+                .Select(e => e.OpKind)
+                .ToList();
+
+            Assert.Contains(FrameOpKind.SliderField, created);
+            Assert.Contains(FrameOpKind.DropdownField, created);
+        }
+
         [Fact]
         public void Dropdown_NoOptions_StillRecordsWithoutThrowing()
         {
