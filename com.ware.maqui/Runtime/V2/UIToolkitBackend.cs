@@ -20,6 +20,7 @@
 //   - BeginReconcile/EndReconcile are no-ops at v0 (no batched flush)
 
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
