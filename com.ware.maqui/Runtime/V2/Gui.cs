@@ -112,8 +112,8 @@ namespace Maqui.V2
 
         // --- Layout primitives (1.3) ---
 
-        public Node Row(Size width = default, Size height = default)
-            => Row(width, height, background: default);
+        public Node Row(Size width = default, Size height = default, string className = null)
+            => Row(width, height, background: default, className: className);
 
         /// <summary>
         /// Row with a background color painted on the container itself — the
@@ -124,12 +124,13 @@ namespace Maqui.V2
         /// <see cref="DrawRect"/> (which cannot sit behind a flex container's
         /// own children).
         /// </summary>
-        public Node Row(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch)
+        public Node Row(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch,
+            string className = null)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.RowBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, alignItems: alignItems));
+                color: background, alignItems: alignItems, className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -138,8 +139,8 @@ namespace Maqui.V2
             _frameBuffer.Record(new FrameOp(FrameOpKind.RowEnd, 0, CurrentScopePath));
         }
 
-        public Node Column(Size width = default, Size height = default)
-            => Column(width, height, background: default);
+        public Node Column(Size width = default, Size height = default, string className = null)
+            => Column(width, height, background: default, className: className);
 
         /// <summary>
         /// Column with a background color painted on the container itself
@@ -149,12 +150,13 @@ namespace Maqui.V2
         /// means "no background" since a fully transparent panel is never
         /// intentional.
         /// </summary>
-        public Node Column(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch)
+        public Node Column(Size width, Size height, Color32 background, AlignItems alignItems = AlignItems.Stretch,
+            string className = null)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.ColumnBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, alignItems: alignItems));
+                color: background, alignItems: alignItems, className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -163,11 +165,12 @@ namespace Maqui.V2
             _frameBuffer.Record(new FrameOp(FrameOpKind.ColumnEnd, 0, CurrentScopePath));
         }
 
-        public Node Box(Size width = default, Size height = default)
+        public Node Box(Size width = default, Size height = default, string className = null)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.Box, id, CurrentScopePath,
-                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value));
+                a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
+                className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -196,8 +199,8 @@ namespace Maqui.V2
         /// <paramref name="height"/> in pixels; content taller than that scrolls.
         /// Pairs with <see cref="EndScrollBox"/>.
         /// </summary>
-        public Node ScrollBox(Size width = default, Size height = default)
-            => ScrollBox(width, height, background: default);
+        public Node ScrollBox(Size width = default, Size height = default, string className = null)
+            => ScrollBox(width, height, background: default, className: className);
 
         /// <summary>
         /// <see cref="ScrollBox(Size,Size)"/> with a background painted on the
@@ -212,12 +215,13 @@ namespace Maqui.V2
         /// background; a max height hugs the content and only starts scrolling once
         /// content actually exceeds it.</para>
         /// </summary>
-        public Node ScrollBox(Size width, Size height, Color32 background, float maxHeight = 0f)
+        public Node ScrollBox(Size width, Size height, Color32 background, float maxHeight = 0f,
+            string className = null)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.ScrollBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, maxHeight: maxHeight));
+                color: background, maxHeight: maxHeight, className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -245,11 +249,11 @@ namespace Maqui.V2
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
-        public Node DrawText(string text, Color32 color = default, float fontSize = 14f)
+        public Node DrawText(string text, Color32 color = default, float fontSize = 14f, string className = null)
         {
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.DrawText, id, CurrentScopePath,
-                a: fontSize, color: color, text: text ?? string.Empty));
+                a: fontSize, color: color, text: text ?? string.Empty, className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 

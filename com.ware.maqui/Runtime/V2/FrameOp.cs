@@ -119,6 +119,14 @@ namespace Maqui.V2
         /// would instead reserve the full box even when the content is tiny.</summary>
         public float MaxHeight { get; }
 
+        /// <summary>Optional style class for the element this op mints; null = none.
+        /// The backend forwards it to the host framework's styling system (USS
+        /// <c>AddToClassList</c> for UI Toolkit) so appearance can live in a
+        /// stylesheet instead of in draw-op arguments. Deliberately a plain string,
+        /// not a Maqui-owned style type: the point is to DELEGATE theming to the
+        /// backend, not to grow a second one here (WINDOW-LOOP WL.2.2).</summary>
+        public string ClassName { get; }
+
         public FrameOp(
             FrameOpKind kind,
             int nodeId,
@@ -127,9 +135,11 @@ namespace Maqui.V2
             Color32 color = default,
             string text = null,
             AlignItems alignItems = AlignItems.Stretch,
-            float maxHeight = 0f)
+            float maxHeight = 0f,
+            string className = null)
         {
             MaxHeight = maxHeight;
+            ClassName = className;
             Kind = kind;
             NodeId = nodeId;
             ScopePath = scopePath;

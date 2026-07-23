@@ -121,6 +121,10 @@ namespace Maqui.V2
             if (!_elements.TryGetValue(handle, out var element)) return;
             _elements.Remove(handle);
             element.RemoveFromHierarchy();
+            // Drop our class bookkeeping AND the class itself: a pooled element must
+            // come back clean, and leaving the entry would grow the map forever with
+            // elements that were dropped on the floor below.
+            ApplyClassName(element, null);
             // Pool by element type. Specialized elements (Label/TextField) don't
             // pool back into the generic Box bucket — they'd be type-incompatible
             // when popped for a different FrameOpKind. Drop them on the floor;
@@ -178,6 +182,8 @@ namespace Maqui.V2
 
         private void ApplyProps(VisualElement element, in FrameOp op)
         {
+            ApplyClassName(element, op.ClassName);
+
             switch (op.Kind)
             {
                 case FrameOpKind.DrawText:
@@ -306,6 +312,35 @@ namespace Maqui.V2
         }
 
         private readonly HashSet<TextField> _textFieldKeys = new();
+
+        /// <summary>Last USS class this backend put on each element. Elements are
+        /// pooled and reused across frames, so applying a class without removing the
+        /// previous one would let a recycled node keep styling from whatever it was
+        /// two frames ago. Tracked here rather than read back off the element so we
+        /// only ever touch classes we own — anything the host added stays untouched.
+        /// </summary>
+        private readonly Dictionary<VisualElement, string> _appliedClasses = new();
+
+        /// <summary>Forwards <see cref="FrameOp.ClassName"/> to USS (WINDOW-LOOP
+        /// WL.2.2). This is the seam that lets appearance live in a stylesheet
+        /// instead of in draw-op colour arguments — delegating theming to UI Toolkit
+        /// rather than growing a second theme system inside Maqui.</summary>
+        private void ApplyClassName(VisualElement element, string className)
+        {
+            _appliedClasses.TryGetValue(element, out var previous);
+            if (previous == className) return;
+
+            if (!string.IsNullOrEmpty(previous)) element.RemoveFromClassList(previous);
+
+            if (string.IsNullOrEmpty(className))
+            {
+                _appliedClasses.Remove(element);
+                return;
+            }
+
+            element.AddToClassList(className);
+            _appliedClasses[element] = className;
+        }
 
         // Maqui.V2.AlignItems -> UnityEngine.UIElements.Align. The Unity enum is
         // fully qualified: this file is in namespace Maqui.V2 AND has a
