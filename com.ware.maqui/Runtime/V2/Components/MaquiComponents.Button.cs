@@ -32,11 +32,22 @@ namespace Maqui.V2.Components
         /// <para>Optional <paramref name="key"/> is the animation slot identity
         /// for future hover-scale tween work; unused at v0.</para>
         /// </summary>
-        public static bool Button(this Gui gui, string label, string key = null)
+        /// <param name="className">Optional USS class for the button container; the
+        /// label gets <c>{className}__label</c>. When set, the C# tint/colour is
+        /// suppressed (transparent background, default text colour) so the
+        /// stylesheet owns appearance outright — including <c>:hover</c>/<c>:active</c>,
+        /// which USS does natively and better than a per-frame tint. Omit it and
+        /// behaviour is exactly as before (WINDOW-LOOP WL.2.2).</param>
+        public static bool Button(this Gui gui, string label, string key = null, string className = null)
         {
+            bool styled = !string.IsNullOrEmpty(className);
+
             var container = gui.Column(default, Size.Pixels(32f),
-                background: ButtonTint(gui, gui.PeekNextNodeId()));
-            gui.DrawText(label ?? string.Empty, MaquiTheme.TextPrimary);
+                background: styled ? default : ButtonTint(gui, gui.PeekNextNodeId()),
+                className: className);
+            gui.DrawText(label ?? string.Empty,
+                styled ? default : MaquiTheme.TextPrimary,
+                className: styled ? className + "__label" : null);
             gui.EndColumn();
             return container.OnClick();
         }

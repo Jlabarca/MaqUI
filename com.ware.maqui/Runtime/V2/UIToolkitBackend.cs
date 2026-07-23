@@ -190,7 +190,13 @@ namespace Maqui.V2
                     if (element is Label label)
                     {
                         label.text = op.Text ?? string.Empty;
-                        label.style.color = new StyleColor(op.Color);
+                        // Alpha 0 means "unset", not "invisible" — fully transparent
+                        // text is never intentional, exactly as alpha 0 already means
+                        // "no background" for containers below. Skipping the write is
+                        // what lets a USS class own the colour: an INLINE style always
+                        // beats a stylesheet in UI Toolkit, so writing it here would
+                        // make the class unable to affect colour at all.
+                        if (op.Color.a > 0) label.style.color = new StyleColor(op.Color);
                         if (op.FloatA > 0f) label.style.fontSize = op.FloatA;
                     }
                     break;
