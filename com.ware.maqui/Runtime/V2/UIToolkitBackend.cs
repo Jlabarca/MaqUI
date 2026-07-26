@@ -470,13 +470,21 @@ namespace Maqui.V2
         private static void ApplySizeIfSet(VisualElement element, in FrameOp op)
         {
             // Width: FloatA/B encode (kind, value); Height: FloatC/D.
-            // For v0 we only honor Pixels — Expand/Fit/Ratio/Percentage layout
-            // resolution lives in P2.x (post-v0 polish) or borrows from
-            // UI Toolkit's own flex layout.
+            // Fit/Ratio still borrow UI Toolkit's own flex layout; Pixels, Expand
+            // and Percentage are honored explicitly. Percentage was added for
+            // ProgressBar (VPU.1) — a fill that is `value` fraction of its track —
+            // and is broadly useful for any bar/meter that should track its parent.
             SizeKind wKind = (SizeKind)(int)op.FloatA;
             SizeKind hKind = (SizeKind)(int)op.FloatC;
             if (wKind == SizeKind.Pixels && op.FloatB > 0f) element.style.width = op.FloatB;
             if (hKind == SizeKind.Pixels && op.FloatD > 0f) element.style.height = op.FloatD;
+            // Percentage: fraction (0..1) of the parent's corresponding axis. Clamp
+            // the low end at 0 so an empty bar collapses cleanly; allow >1 through
+            // since the Size doc says overflow is permitted.
+            if (wKind == SizeKind.Percentage)
+                element.style.width = new StyleLength(new Length(Mathf.Max(0f, op.FloatB) * 100f, LengthUnit.Percent));
+            if (hKind == SizeKind.Percentage)
+                element.style.height = new StyleLength(new Length(Mathf.Max(0f, op.FloatD) * 100f, LengthUnit.Percent));
             // Expand: grow to fill remaining space along the parent's main axis —
             // e.g. a Spacer(Size.Expand()) between a title and a close button
             // pushes the button to the far edge of a Row. Same underlying Yoga
