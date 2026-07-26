@@ -43,13 +43,17 @@ namespace Maqui.V2
 
         private readonly Gui _gui;
         private readonly Maqui.V2.Components.IImageLoader _imageLoader;
+        private readonly Maqui.V2.Components.ISpriteLoader _spriteLoader;
 
-        public UIToolkitBackend(VisualElement root, Gui gui = null, Maqui.V2.Components.IImageLoader imageLoader = null)
+        public UIToolkitBackend(VisualElement root, Gui gui = null,
+            Maqui.V2.Components.IImageLoader imageLoader = null,
+            Maqui.V2.Components.ISpriteLoader spriteLoader = null)
         {
             _root = root ?? throw new System.ArgumentNullException(nameof(root));
             _elements[0] = root;
             _gui = gui;
             _imageLoader = imageLoader;
+            _spriteLoader = spriteLoader;
         }
 
         /// <summary>
@@ -236,14 +240,7 @@ namespace Maqui.V2
                     break;
                 case FrameOpKind.DrawImage:
                     ApplySizeIfSet(element, in op);
-                    if (_imageLoader != null && !string.IsNullOrEmpty(op.Text))
-                    {
-                        var tex = _imageLoader.Resolve(op.Text);
-                        if (tex != null)
-                        {
-                            element.style.backgroundImage = new StyleBackground(tex);
-                        }
-                    }
+                    ApplyImage(element, op.Text);
                     break;
                 case FrameOpKind.TextInputField:
                     ApplySizeIfSet(element, in op);
@@ -492,6 +489,44 @@ namespace Maqui.V2
             // kind, so either slot maps to flexGrow.
             if (wKind == SizeKind.Expand) element.style.flexGrow = op.FloatB > 0f ? op.FloatB : 1f;
             if (hKind == SizeKind.Expand) element.style.flexGrow = op.FloatD > 0f ? op.FloatD : 1f;
+        }
+
+        /// <summary>Resolve a DrawImage key and paint it as the element's
+        /// background, preferring the atlas sprite loader over the loose-texture
+        /// loader. Aspect is preserved (Contain) so a non-square source
+        /// letterboxes inside the requested box instead of stretching. A null
+        /// resolution clears any pooled leftover background so a recycled
+        /// element never shows a previous icon.</summary>
+        private void ApplyImage(VisualElement element, string key)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                if (_spriteLoader != null)
+                {
+                    var sprite = _spriteLoader.Resolve(key);
+                    if (sprite != null)
+                    {
+                        element.style.backgroundImage = new StyleBackground(sprite);
+                        element.style.backgroundSize =
+                            new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Contain));
+                        return;
+                    }
+                }
+                if (_imageLoader != null)
+                {
+                    var tex = _imageLoader.Resolve(key);
+                    if (tex != null)
+                    {
+                        element.style.backgroundImage = new StyleBackground(tex);
+                        element.style.backgroundSize =
+                            new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Contain));
+                        return;
+                    }
+                }
+            }
+            // No loader, empty key, or unresolved: leave no stale background on a
+            // recycled element.
+            element.style.backgroundImage = StyleKeyword.Null;
         }
 
         private VisualElement TryPop(FrameOpKind kind)

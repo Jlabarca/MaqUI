@@ -40,4 +40,11 @@ namespace UnityEngine
     /// exercised headlessly (no real image loading runs outside Unity).
     /// </summary>
     public class Texture2D { }
+
+    /// <summary>
+    /// Shim of <c>UnityEngine.Sprite</c>. Only the type identity is needed by
+    /// <c>Maqui.V2.Components.ISpriteLoader.Resolve</c> (atlas-backed icons whose
+    /// sub-rect a bare Texture2D can't express); no methods run headlessly.
+    /// </summary>
+    public class Sprite { }
 }
