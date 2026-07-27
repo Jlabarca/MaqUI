@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: MIT
+// MaqUI v2 — Controls.SkillEntry (V2-PRO-SKIN.3.1).
+
+namespace Maqui.V2.Components
+{
+    public static partial class MaquiComponents
+    {
+        /// <summary>
+        /// A skill-tree cell: icon + name + "level / max" with a −/+
+        /// <see cref="Stepper"/>, wrapped in a container that gains
+        /// <paramref name="learnedClassName"/> (the green learned outline) once the
+        /// skill has at least one point. Returns the stepper delta this frame — the
+        /// caller decides whether +1 is spendable and fires the server command
+        /// (skill-down is not server-wired, so callers pass
+        /// <paramref name="canLevelUp"/> and ignore −1).
+        ///
+        /// <para>Pure composition of Icon + DrawText + Stepper — no new op. Reuses
+        /// the P1 Stepper and the pro token classes.</para>
+        /// </summary>
+        public static int SkillEntry(this Gui gui, string key, string iconKey, string name,
+            int level, int maxLevel, bool learned, bool canLevelUp = true, float iconSize = 30f,
+            string className = null, string learnedClassName = null, string iconClassName = null,
+            string nameClassName = null, string levelClassName = null, string buttonClassName = null)
+        {
+            int delta = 0;
+            string cls = learned ? (learnedClassName ?? className) : className;
+
+            gui.Column(Size.Expand(), Size.Fit(), background: default, className: cls);
+            {
+                gui.Row(Size.Expand(), Size.Fit(), background: default, alignItems: AlignItems.Center);
+                {
+                    gui.Column(Size.Pixels(iconSize + 6f), Size.Pixels(iconSize + 6f), background: default,
+                        alignItems: AlignItems.Center, className: iconClassName);
+                    {
+                        if (!string.IsNullOrEmpty(iconKey))
+                            gui.Icon(iconKey, iconSize);
+                    }
+                    gui.EndColumn();
+
+                    gui.Spacer(Size.Pixels(4f));
+
+                    gui.Column(Size.Expand(), Size.Fit(), background: default, alignItems: AlignItems.Start);
+                    {
+                        gui.DrawText(name ?? string.Empty, className: nameClassName);
+                        gui.DrawText($"{level} / {maxLevel}", className: levelClassName);
+                    }
+                    gui.EndColumn();
+
+                    // Skill-down is not a server command, so the − side is disabled;
+                    // + is gated on canLevelUp (points available + prereqs met).
+                    delta = gui.Stepper(key + "-lv", string.Empty,
+                        buttonClassName: buttonClassName,
+                        canDecrement: false, canIncrement: canLevelUp);
+                }
+                gui.EndRow();
+            }
+            gui.EndColumn();
+
+            return delta;
+        }
+    }
+}
