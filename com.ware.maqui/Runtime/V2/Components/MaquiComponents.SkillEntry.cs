@@ -39,18 +39,27 @@ namespace Maqui.V2.Components
 
                     gui.Spacer(Size.Pixels(4f));
 
+                    // Name spans the full width right of the icon (single-line +
+                    // ellipsis is a styling concern of nameClassName); the level and
+                    // the −/+ stepper share the row BELOW it, so the name is never
+                    // starved into a char-by-char wrap.
                     gui.Column(Size.Expand(), Size.Fit(), background: default, alignItems: AlignItems.Start);
                     {
                         gui.DrawText(name ?? string.Empty, className: nameClassName);
-                        gui.DrawText($"{level} / {maxLevel}", className: levelClassName);
+
+                        gui.Row(Size.Expand(), Size.Fit(), background: default, alignItems: AlignItems.Center);
+                        {
+                            gui.DrawText($"{level} / {maxLevel}", className: levelClassName);
+                            gui.Spacer(Size.Expand());
+                            // Skill-down is not a server command, so the − side is
+                            // disabled; + is gated on canLevelUp.
+                            delta = gui.Stepper(key + "-lv", string.Empty,
+                                buttonClassName: buttonClassName,
+                                canDecrement: false, canIncrement: canLevelUp);
+                        }
+                        gui.EndRow();
                     }
                     gui.EndColumn();
-
-                    // Skill-down is not a server command, so the − side is disabled;
-                    // + is gated on canLevelUp (points available + prereqs met).
-                    delta = gui.Stepper(key + "-lv", string.Empty,
-                        buttonClassName: buttonClassName,
-                        canDecrement: false, canIncrement: canLevelUp);
                 }
                 gui.EndRow();
             }
