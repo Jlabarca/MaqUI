@@ -88,6 +88,25 @@ namespace Maqui.V2
             return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.Active);
         }
 
+        /// <summary>VPU.6. True on the frame a drag BEGAN on this node (pointer
+        /// pressed here, then moved). Use on a drag source to snapshot its payload.</summary>
+        public static bool OnDragStart(this Node node)
+        {
+            if (node.IsNone) return false;
+            node.Owner.RecordInteraction(FrameOpKind.OnDrag, node);
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.DragStartedThisFrame);
+        }
+
+        /// <summary>VPU.6. True on the frame an in-progress drag was RELEASED over
+        /// this node (the drop target — may differ from the source). Use on a drop
+        /// zone to consume the drag payload and act on it.</summary>
+        public static bool OnDragEnd(this Node node)
+        {
+            if (node.IsNone) return false;
+            node.Owner.RecordInteraction(FrameOpKind.OnDrag, node);
+            return node.Owner.Interactions.Has(node.Id, NodeInteractionFlags.DragEndedThisFrame);
+        }
+
         // --- P4: readable flags inside immediate-mode call (4.3) ---
 
         /// <summary>P4. True if the pointer is over this node THIS FRAME.</summary>

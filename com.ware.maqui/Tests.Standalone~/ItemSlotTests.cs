@@ -59,6 +59,18 @@ namespace Maqui.V2.Tests
         }
 
         [Fact]
+        public void ItemSlot_NoInteraction_ReportsNoDrag()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            var r = gui.ItemSlot("s0", "Apple");
+            gui.EndFrame();
+
+            Assert.False(r.DragStarted);
+            Assert.False(r.Dropped);
+        }
+
+        [Fact]
         public void ItemSlot_EmptyIcon_DrawsNoImage()
         {
             var gui = new Gui();

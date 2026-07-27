@@ -17,7 +17,17 @@ namespace Maqui.V2.Components
     {
         public bool Clicked { get; }
         public bool Hovered { get; }
-        public SlotResult(bool clicked, bool hovered) { Clicked = clicked; Hovered = hovered; }
+        /// <summary>A drag began on this slot this frame (pressed here, then moved).
+        /// Use it to snapshot the slot's item into a drag session. (VPU.6)</summary>
+        public bool DragStarted { get; }
+        /// <summary>A drag was released over this slot this frame — the slot is the
+        /// drop target. Consume the drag session and act on it. (VPU.6)</summary>
+        public bool Dropped { get; }
+
+        public SlotResult(bool clicked, bool hovered, bool dragStarted = false, bool dropped = false)
+        {
+            Clicked = clicked; Hovered = hovered; DragStarted = dragStarted; Dropped = dropped;
+        }
     }
 
     public static partial class MaquiComponents
@@ -52,7 +62,11 @@ namespace Maqui.V2.Components
 
             bool clicked = !disabled && slot.OnClick();
             bool hovered = slot.IsHovered();
-            return new SlotResult(clicked, hovered);
+            // A disabled slot can't source a drag, but CAN receive a drop (e.g. an
+            // empty/locked target the caller validates).
+            bool dragStarted = !disabled && slot.OnDragStart();
+            bool dropped = slot.OnDragEnd();
+            return new SlotResult(clicked, hovered, dragStarted, dropped);
         }
 
         /// <summary>

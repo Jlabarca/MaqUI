@@ -43,6 +43,16 @@ namespace Maqui.V2
         private readonly Dictionary<int, int> _handleToCurrentNodeId = new();
         private readonly Dictionary<int, string> _handleToCurrentScope = new();
 
+        // Drag tracking (VPU.6): the node a press started on, and whether the
+        // pointer has moved since — so we can flag DragStarted on the source and
+        // DragEnded on whatever node the release lands on (the drop target).
+        private int _dragSourceNodeId = -1;
+        private bool _dragging;
+
+        /// <summary>The node id a drag is currently sourced from, or -1. Lets a
+        /// caller carry a payload for the drag in progress (which item is held).</summary>
+        public int DragSourceNodeId => _dragSourceNodeId;
+
         public UIToolkitInteractionAdapter(Gui gui, UIToolkitBackend backend, PointerEventQueue queue = null)
         {
             _gui = gui ?? throw new System.ArgumentNullException(nameof(gui));
@@ -130,6 +140,10 @@ namespace Maqui.V2
                     break;
                 case PointerEventKind.Down:
                     state.AddFlags(nodeId, NodeInteractionFlags.Active);
+                    // Arm a potential drag from this node; not a drag until the
+                    // pointer actually moves (a plain click must not flag a drag).
+                    _dragSourceNodeId = nodeId;
+                    _dragging = false;
                     break;
                 case PointerEventKind.Up:
                     bool wasActive = state.Has(nodeId, NodeInteractionFlags.Active);
@@ -138,10 +152,24 @@ namespace Maqui.V2
                     {
                         state.AddFlags(nodeId, NodeInteractionFlags.ClickedThisFrame);
                     }
+                    // A release that ends an in-progress drag flags DragEnded on the
+                    // node under the pointer — the drop target (may differ from the
+                    // source; that's the whole point of a drag).
+                    if (_dragging)
+                    {
+                        state.AddFlags(nodeId, NodeInteractionFlags.DragEndedThisFrame);
+                        _dragging = false;
+                        _dragSourceNodeId = -1;
+                    }
                     break;
                 case PointerEventKind.Move:
-                    // No flag changes; Move events are useful only via the queue
-                    // (for callers tracking drag deltas).
+                    // First move after a Down promotes the armed node to a drag and
+                    // flags DragStarted on the SOURCE (not the moved-over node).
+                    if (_dragSourceNodeId >= 0 && !_dragging)
+                    {
+                        _dragging = true;
+                        state.AddFlags(_dragSourceNodeId, NodeInteractionFlags.DragStartedThisFrame);
+                    }
                     break;
             }
         }
