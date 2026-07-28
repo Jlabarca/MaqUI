@@ -7,9 +7,13 @@ namespace Maqui.V2.Components
 {
     public static partial class MaquiComponents
     {
-        private const float TogglePillWidth = 80f;
-        private const float TogglePillHeight = 32f;
-        private const float ToggleKnobSize = 24f;
+        // V2-UI-FEEL P5: shrunk from 80x32/knob24 — at the old size, stacked
+        // settings rows (Sprite filtering, Monster HP bars, ...) had almost no
+        // gap between pills and read as one fused blue bar. Smaller pill, same
+        // proportions, leaves room for row spacing to actually separate them.
+        private const float TogglePillWidth = 44f;
+        private const float TogglePillHeight = 20f;
+        private const float ToggleKnobSize = 16f;
 
         /// <summary>
         /// Pill-shaped on/off toggle. Returns the (possibly flipped) state
