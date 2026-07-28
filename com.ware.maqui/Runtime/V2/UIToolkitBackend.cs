@@ -214,7 +214,17 @@ namespace Maqui.V2
                     break;
                 case FrameOpKind.DrawRect:
                 case FrameOpKind.Box:
-                    element.style.backgroundColor = new StyleColor(op.Color);
+                    // Same alpha-0-means-"unset" rule the label path above documents —
+                    // it was stated there as already true "for containers below", but the
+                    // guard was never actually applied here. `Gui.Box` records no colour
+                    // at all, so op.Color is default (0,0,0,0); writing it unconditionally
+                    // put a TRANSPARENT INLINE background on every className-styled Box,
+                    // and an inline style always beats a stylesheet in UI Toolkit. Net
+                    // effect: any `background-color` a USS class set on a Box could never
+                    // paint. That is why the HP/SP bar fills (.ro-pro-bar__fill-*) and the
+                    // stats portrait inset rendered invisible while their tracks — Rows,
+                    // which take a different path — themed correctly.
+                    if (op.Color.a > 0) element.style.backgroundColor = new StyleColor(op.Color);
                     ApplySizeIfSet(element, in op);
                     // v0 default chrome: every filled rect gets a small corner
                     // radius so stock components (Button, Toggle pill, ...)
