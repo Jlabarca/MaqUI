@@ -48,6 +48,10 @@ namespace Maqui.V2
         // DragEnded on whatever node the release lands on (the drop target).
         private int _dragSourceNodeId = -1;
         private bool _dragging;
+        /// <summary>Latched by the direct target's Up so the rest of that release's
+        /// bubble chain still receives DragEnded after `_dragging` is cleared. Reset by
+        /// the next Down. See the Up case for why the chain needs it.</summary>
+        private bool _dragEndBubbling;
 
         /// <summary>The node id a drag is currently sourced from, or -1. Lets a
         /// caller carry a payload for the drag in progress (which item is held).</summary>
@@ -97,10 +101,28 @@ namespace Maqui.V2
             element.RegisterCallback<PointerMoveEvent>(evt => OnEvent(handle, evt, PointerEventKind.Move));
         }
 
-        private void OnEvent(int handle, IPointerEvent evt, PointerEventKind kind)
+        // Generic over the concrete event type because target/currentTarget live on
+        // EventBase, not IPointerEvent — the bubbling check below needs both.
+        private void OnEvent<T>(int handle, T evt, PointerEventKind kind)
+            where T : EventBase, IPointerEvent
         {
-            // Real UI Toolkit path: delegate to the event-agnostic dispatcher.
-            DispatchEvent(handle, kind, evt.position.x, evt.position.y, evt.button);
+            // UI Toolkit BUBBLES pointer events, so this callback also runs for every
+            // ancestor of the element actually hit — each with its own handle. Per-node
+            // flags (Hover/Active/Clicked) are fine with that: each element flags itself,
+            // and the hit element still gets its own. The DRAG SOURCE is not, because it
+            // is a single field: the innermost element wrote it first and every ancestor
+            // then overwrote it, so it ended up holding the OUTERMOST container.
+            //
+            // Measured in ORO's inventory: pressing the first item slot (handle 5) left
+            // _dragSourceNodeId == 1, which is the `ro-admin` root container. DragStarted
+            // was therefore flagged on the container and the slot never saw it — the item
+            // drag "not working" while clicks on the very same element worked fine.
+            //
+            // `target != currentTarget` is the standard test for "this is a bubbled copy,
+            // not the real hit". Only the drag-source bookkeeping is gated on it, so the
+            // flag semantics every other consumer relies on are untouched.
+            bool isDirectTarget = ReferenceEquals(evt.target, evt.currentTarget);
+            DispatchEvent(handle, kind, evt.position.x, evt.position.y, evt.button, isDirectTarget);
         }
 
         /// <summary>
@@ -115,7 +137,12 @@ namespace Maqui.V2
         /// <see cref="NoteHandleFrameOp"/> first; otherwise the call is a
         /// no-op (same semantics as <c>OnEvent</c>).</para>
         /// </summary>
-        public void DispatchEvent(int handle, PointerEventKind kind, float x, float y, int button = 0)
+        /// <param name="isDirectTarget">False when this call is a BUBBLED copy of an event
+        /// whose real target was a descendant. Only the drag-source bookkeeping consults
+        /// it; defaults to true so the headless/test path and non-UIT input sources keep
+        /// their existing single-dispatch semantics.</param>
+        public void DispatchEvent(int handle, PointerEventKind kind, float x, float y, int button = 0,
+            bool isDirectTarget = true)
         {
             if (!_handleToCurrentNodeId.TryGetValue(handle, out int nodeId)) return;
             _handleToCurrentScope.TryGetValue(handle, out string scope);
@@ -142,8 +169,15 @@ namespace Maqui.V2
                     state.AddFlags(nodeId, NodeInteractionFlags.Active);
                     // Arm a potential drag from this node; not a drag until the
                     // pointer actually moves (a plain click must not flag a drag).
-                    _dragSourceNodeId = nodeId;
-                    _dragging = false;
+                    // Only the DIRECT target arms it — a bubbled copy from an ancestor
+                    // would otherwise overwrite the real source with a container.
+                    if (isDirectTarget)
+                    {
+                        _dragSourceNodeId = nodeId;
+                        _dragging = false;
+                        // A new gesture closes the previous release's bubble chain.
+                        _dragEndBubbling = false;
+                    }
                     break;
                 case PointerEventKind.Up:
                     bool wasActive = state.Has(nodeId, NodeInteractionFlags.Active);
@@ -155,11 +189,35 @@ namespace Maqui.V2
                     // A release that ends an in-progress drag flags DragEnded on the
                     // node under the pointer — the drop target (may differ from the
                     // source; that's the whole point of a drag).
-                    if (_dragging)
+                    //
+                    // Unlike the drag SOURCE, DragEnded must reach the whole bubble chain,
+                    // not just the direct target. Drop zones are containers whose visible
+                    // body is a child (ORO's Equip/Use zones are a Column wrapping a
+                    // Label), so a release lands on the CHILD — flagging only the direct
+                    // target would leave the zone itself without a drop and `OnDragEnd()`
+                    // would never fire.
+                    //
+                    // Resetting on the direct target alone is what made this fail before:
+                    // the innermost Up cleared _dragging, and every ancestor's bubbled copy
+                    // then found it already false and skipped its flag. So the latch below
+                    // keeps the chain flagging after the reset, and is armed only by the
+                    // direct target so one gesture can't re-enter it.
+                    if (isDirectTarget)
+                    {
+                        if (_dragging)
+                        {
+                            state.AddFlags(nodeId, NodeInteractionFlags.DragEndedThisFrame);
+                            _dragEndBubbling = true;
+                            _dragging = false;
+                        }
+                        // Disarm on EVERY release, not just one that was dragging. A plain
+                        // click previously left the source armed, so the next stray Move —
+                        // with no button held — promoted it to a phantom drag.
+                        _dragSourceNodeId = -1;
+                    }
+                    else if (_dragEndBubbling)
                     {
                         state.AddFlags(nodeId, NodeInteractionFlags.DragEndedThisFrame);
-                        _dragging = false;
-                        _dragSourceNodeId = -1;
                     }
                     break;
                 case PointerEventKind.Move:
