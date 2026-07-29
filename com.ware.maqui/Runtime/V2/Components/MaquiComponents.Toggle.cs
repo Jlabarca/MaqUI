@@ -7,13 +7,33 @@ namespace Maqui.V2.Components
 {
     public static partial class MaquiComponents
     {
-        // V2-UI-FEEL P5: shrunk from 80x32/knob24 — at the old size, stacked
-        // settings rows (Sprite filtering, Monster HP bars, ...) had almost no
-        // gap between pills and read as one fused blue bar. Smaller pill, same
-        // proportions, leaves room for row spacing to actually separate them.
-        private const float TogglePillWidth = 44f;
-        private const float TogglePillHeight = 20f;
+        // Sizing history: 80x32/knob24 originally; V2-UI-FEEL P5 shrank it to
+        // 44x20/knob16 because stacked settings rows read as one fused blue bar.
+        // That fixed the fusing but broke the MOTION, which is the operator's
+        // follow-up complaint: the backend forces ContainerPadding (10px) on each
+        // side of any background-carrying container, so a 44px pill has only
+        // 44 - 20 - 16 = **8px** of knob travel. The knob barely moved, which reads
+        // as a broken control rather than a small one.
+        //
+        // 52x22 restores 52 - 20 - 16 = 16px of travel — double the slide — while
+        // staying far closer to the P5 size than the original 80px, so the row
+        // fusing P5 fixed does not come back (the 6px row spacer added alongside it
+        // is what actually separates the rows).
+        private const float TogglePillWidth = 52f;
+        private const float TogglePillHeight = 22f;
         private const float ToggleKnobSize = 16f;
+
+        // A pill wants a circular knob. DrawRect gets MaquiTheme.CornerRadius (5f),
+        // which on a 16px square reads as a rounded box sliding in a slot; DrawCircle
+        // sets width/height AND a full corner radius from one value, so the knob is
+        // actually round. Radius, not diameter — hence the halving.
+        private const float ToggleKnobRadius = ToggleKnobSize * 0.5f;
+
+        // Snappier than the spring defaults: a toggle should arrive decisively rather
+        // than drift. Higher stiffness with damping just under critical gives a quick
+        // slide with a barely-perceptible settle instead of a visible wobble.
+        private const float ToggleStiffness = 520f;
+        private const float ToggleDamping = 34f;
 
         /// <summary>
         /// Pill-shaped on/off toggle. Returns the (possibly flipped) state
@@ -37,7 +57,8 @@ namespace Maqui.V2.Components
             // Knob position animates between t=0 (off) and t=1 (on). Ticked by
             // Gui.TickAnimations; the slide is realized as a leading Spacer whose
             // width is the interpolated offset (see ComputeKnobOffset).
-            float t = gui.Animate(key + "-toggle-t", state ? 1f : 0f);
+            float t = gui.Animate(key + "-toggle-t", state ? 1f : 0f,
+                ToggleStiffness, ToggleDamping);
 
             int pillId = gui.PeekNextNodeId();
             var pill = gui.Row(
@@ -47,7 +68,7 @@ namespace Maqui.V2.Components
                 alignItems: AlignItems.Center); // vertically centers the knob in the pill
             {
                 gui.Spacer(Size.Pixels(ComputeKnobOffset(t)));
-                gui.DrawRect(MaquiTheme.ToggleKnob, Size.Pixels(ToggleKnobSize), Size.Pixels(ToggleKnobSize));
+                gui.DrawCircle(MaquiTheme.ToggleKnob, ToggleKnobRadius);
             }
             gui.EndRow();
 

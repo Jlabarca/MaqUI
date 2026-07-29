@@ -214,6 +214,9 @@ namespace Maqui.V2
                         // click previously left the source armed, so the next stray Move —
                         // with no button held — promoted it to a phantom drag.
                         _dragSourceNodeId = -1;
+                        // The gesture is over regardless of whether anything caught it.
+                        // A caller holding a drag payload watches this to discard it.
+                        _gui.DragInFlight = false;
                     }
                     else if (_dragEndBubbling)
                     {
@@ -226,6 +229,7 @@ namespace Maqui.V2
                     if (_dragSourceNodeId >= 0 && !_dragging)
                     {
                         _dragging = true;
+                        _gui.DragInFlight = true;
                         state.AddFlags(_dragSourceNodeId, NodeInteractionFlags.DragStartedThisFrame);
                     }
                     break;

@@ -41,6 +41,18 @@ namespace Maqui.V2
         /// Reset every <see cref="BeginFrame"/>.</summary>
         public InteractionState Interactions => _interactions;
 
+        /// <summary>True while a drag gesture is actually in flight (pressed, then
+        /// moved, not yet released). Written by the Unity-side adapter.
+        ///
+        /// <para>Exists because <c>DragStarted</c>/<c>Dropped</c> are single-frame
+        /// EDGES, so a caller that snapshots a drag payload on DragStarted has no way
+        /// to learn the gesture ended somewhere that wasn't a drop target — it would
+        /// hold that payload forever. This is the LEVEL signal: when it goes false and
+        /// nothing consumed the drop, the drag was aborted and the payload should be
+        /// discarded. Unlike the flag table this is NOT reset by BeginFrame; it tracks
+        /// the gesture, which outlives a frame.</para></summary>
+        public bool DragInFlight { get; internal set; }
+
         /// <summary>P8.6: per-key typed-text table. Written by the Unity-side
         /// TextField value-changed callback; read by
         /// <c>MaquiComponents.TextInput</c> to surface latest typed text.
