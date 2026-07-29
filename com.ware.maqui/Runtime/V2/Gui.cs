@@ -50,8 +50,20 @@ namespace Maqui.V2
         /// hold that payload forever. This is the LEVEL signal: when it goes false and
         /// nothing consumed the drop, the drag was aborted and the payload should be
         /// discarded. Unlike the flag table this is NOT reset by BeginFrame; it tracks
-        /// the gesture, which outlives a frame.</para></summary>
-        public bool DragInFlight { get; internal set; }
+        /// the gesture, which outlives a frame.</para>
+        ///
+        /// <para><b>Backed by a static field — deliberately GLOBAL, not per-instance.</b>
+        /// One <see cref="Gui"/>/adapter pair exists per window (each has its own
+        /// <c>UIDocument</c>), so a per-instance flag could tell a window whether ITS
+        /// OWN drag was released, but not whether SOME OTHER window's drag is still in
+        /// flight. That distinction matters the moment a drag needs to cross windows: a
+        /// drop-zone in window B has to know a drag sourced in window A hasn't ended
+        /// yet, and window A's local state is invisible to window B's adapter. A single
+        /// pointer only supports one drag at a time anyway, so there is nothing lost by
+        /// sharing this across every <see cref="Gui"/> instance in the process.</para></summary>
+        public bool DragInFlight { get => _dragInFlightGlobal; internal set => _dragInFlightGlobal = value; }
+
+        private static bool _dragInFlightGlobal;
 
         /// <summary>P8.6: per-key typed-text table. Written by the Unity-side
         /// TextField value-changed callback; read by

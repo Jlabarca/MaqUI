@@ -202,14 +202,22 @@ namespace Maqui.V2
                     // then found it already false and skipped its flag. So the latch below
                     // keeps the chain flagging after the reset, and is armed only by the
                     // direct target so one gesture can't re-enter it.
+                    //
+                    // Gated on `_gui.DragInFlight` (now a GLOBAL flag — see Gui.cs), NOT the
+                    // local `_dragging`. `_dragging` only ever goes true in the window a drag
+                    // SOURCED from (this adapter's own Move case, below); a drop-zone that
+                    // lives in a DIFFERENT window would never see DragEndedThisFrame under
+                    // the old local-only gate, which is exactly the cross-window case this
+                    // exists to support. Same-window behaviour is unchanged, because
+                    // `_dragging` and `DragInFlight` are always set together in that case.
                     if (isDirectTarget)
                     {
-                        if (_dragging)
+                        if (_gui.DragInFlight)
                         {
                             state.AddFlags(nodeId, NodeInteractionFlags.DragEndedThisFrame);
                             _dragEndBubbling = true;
-                            _dragging = false;
                         }
+                        _dragging = false;
                         // Disarm on EVERY release, not just one that was dragging. A plain
                         // click previously left the source armed, so the next stray Move —
                         // with no button held — promoted it to a phantom drag.

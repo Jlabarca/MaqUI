@@ -16,6 +16,13 @@ namespace Maqui.V2.Components
         /// <see cref="Gui.Row"/> — same hit-testing structure as
         /// <see cref="ItemSlot"/>, so it reports a <see cref="SlotResult"/> (a click
         /// = "unequip me"). No new framework op.</para>
+        ///
+        /// <para><see cref="SlotResult.Dropped"/> is always read (mirrors
+        /// <see cref="ItemSlot"/>'s own unconditional <c>OnDragEnd()</c> call) so any
+        /// EquipSlot can double as a drop target for an item dragged from elsewhere —
+        /// the caller decides whether to act on it. <see cref="SlotResult.DragStarted"/>
+        /// is deliberately left false: dragging a filled slot back OUT is a distinct,
+        /// unbuilt feature (what would the drop even mean?), not implied by this.</para>
         /// </summary>
         public static SlotResult EquipSlot(this Gui gui, string key, string slotLabel,
             string iconKey, string itemName, bool mirrored = false, float iconSize = 34f,
@@ -41,7 +48,7 @@ namespace Maqui.V2.Components
             }
             gui.EndRow();
 
-            return new SlotResult(row.OnClick(), row.IsHovered());
+            return new SlotResult(row.OnClick(), row.IsHovered(), dragStarted: false, dropped: row.OnDragEnd());
         }
 
         // The recessed icon square. A separate Column so the tile keeps its fixed
