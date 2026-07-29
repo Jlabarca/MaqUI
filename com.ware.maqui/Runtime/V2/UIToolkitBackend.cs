@@ -75,7 +75,9 @@ namespace Maqui.V2
 
         public int CreateElement(in FrameOp op)
         {
-            VisualElement element = TryPop(op.Kind) ?? Build(op.Kind);
+            VisualElement element = TryPop(op.Kind);
+            if (element != null) ResetPooledStyles(element);
+            else element = Build(op.Kind);
             ApplyProps(element, in op);
 
             int handle = _nextHandle++;
@@ -184,16 +186,7 @@ namespace Maqui.V2
                 // menu interaction; Maqui only records the desired value and reads
                 // back what the user did.
                 case FrameOpKind.SliderField:
-                {
-                    // A native Slider has no intrinsic width. Dropped into a flex Row
-                    // with no flex-grow — which is every current caller, since Slider()
-                    // exposes no size parameter — it collapses to 0px wide and renders
-                    // as an unusable sliver (ORO's config window was measured at 0x24).
-                    // A floor, not a fixed width: an explicit larger width still wins.
-                    var s = new Slider();
-                    s.style.minWidth = 120f;
-                    return s;
-                }
+                    return new Slider();
                 case FrameOpKind.DropdownField:
                     return new DropdownField();
                 default:
@@ -359,6 +352,16 @@ namespace Maqui.V2
         /// fight the user mid-drag.</para></summary>
         private void ApplySliderProps(Slider slider, in FrameOp op)
         {
+            // A native Slider has no intrinsic width. Dropped into a flex Row with no
+            // flex-grow — every current caller, since Slider() exposes no size parameter —
+            // it collapses to 0px and renders as an unusable sliver (ORO's config window
+            // measured 0x24). A floor, not a fixed width: a larger explicit width wins.
+            //
+            // Applied HERE and not in the factory: ResetPooledStyles clears minWidth when
+            // an element is recycled, so a factory-time floor survives only until the
+            // slider's first reuse. That regression is exactly what this comment is for.
+            slider.style.minWidth = 120f;
+
             string storeKey = op.Text;
             float value = op.FloatA, min = op.FloatB, max = op.FloatC;
 
@@ -546,6 +549,55 @@ namespace Maqui.V2
             // No loader, empty key, or unresolved: leave no stale background on a
             // recycled element.
             element.style.backgroundImage = StyleKeyword.Null;
+        }
+
+        /// <summary>
+        /// Clear every inline style the backend is capable of writing, before a recycled
+        /// element is handed to its next occupant.
+        ///
+        /// <para><b>Why this is mandatory.</b> <c>ApplyProps</c>/<c>ApplySizeIfSet</c> only
+        /// ever SET properties — they set width when the op says Pixels, flexGrow when it
+        /// says Expand, and so on — and never clear the ones the new op is silent about.
+        /// The pool is per-kind, so an element always returns as the same op kind, but the
+        /// same kind is used for very different ROLES: a <c>Spacer(Size.Expand())</c>
+        /// (flexGrow 1) and a <c>Spacer(Size.Pixels(6))</c> are both Spacers. Recycle the
+        /// first as the second and it is 6px wide AND still grows.
+        ///
+        /// <para>That is what wrecked the Settings window specifically: its rows alternate
+        /// expand-spacers, fixed-spacers, sliders and dropdowns more than any other V2
+        /// window, so it recycles across roles the most. The visible symptoms were a
+        /// toggle pill stretched across the row and a knob detached from its pill —
+        /// the knob's offset Spacer had inherited flexGrow from an expand-spacer.</para>
+        ///
+        /// <para>Cleared to <see cref="StyleKeyword.Null"/>, not to a default value: Null
+        /// REMOVES the inline style so the element falls back to its USS class, which is
+        /// the whole point of the class-based skin. Writing a concrete default here would
+        /// reintroduce the inline-beats-stylesheet bug in a different place.</para>
+        ///
+        /// <para>Done at rent time rather than in ApplyProps so it costs one pass per
+        /// recycle instead of one per element per frame.</para>
+        /// </summary>
+        private static void ResetPooledStyles(VisualElement element)
+        {
+            // Layout — the group that actually corrupted Settings.
+            element.style.width = StyleKeyword.Null;
+            element.style.height = StyleKeyword.Null;
+            element.style.minWidth = StyleKeyword.Null;
+            element.style.maxHeight = StyleKeyword.Null;
+            element.style.flexGrow = StyleKeyword.Null;
+            element.style.alignItems = StyleKeyword.Null;
+            element.style.paddingLeft = StyleKeyword.Null;
+            element.style.paddingRight = StyleKeyword.Null;
+
+            // Paint.
+            element.style.backgroundColor = StyleKeyword.Null;
+            element.style.backgroundImage = StyleKeyword.Null;
+            element.style.color = StyleKeyword.Null;
+            element.style.fontSize = StyleKeyword.Null;
+            element.style.borderTopLeftRadius = StyleKeyword.Null;
+            element.style.borderTopRightRadius = StyleKeyword.Null;
+            element.style.borderBottomLeftRadius = StyleKeyword.Null;
+            element.style.borderBottomRightRadius = StyleKeyword.Null;
         }
 
         private VisualElement TryPop(FrameOpKind kind)
