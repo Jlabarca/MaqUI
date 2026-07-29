@@ -184,7 +184,16 @@ namespace Maqui.V2
                 // menu interaction; Maqui only records the desired value and reads
                 // back what the user did.
                 case FrameOpKind.SliderField:
-                    return new Slider();
+                {
+                    // A native Slider has no intrinsic width. Dropped into a flex Row
+                    // with no flex-grow — which is every current caller, since Slider()
+                    // exposes no size parameter — it collapses to 0px wide and renders
+                    // as an unusable sliver (ORO's config window was measured at 0x24).
+                    // A floor, not a fixed width: an explicit larger width still wins.
+                    var s = new Slider();
+                    s.style.minWidth = 120f;
+                    return s;
+                }
                 case FrameOpKind.DropdownField:
                     return new DropdownField();
                 default:
