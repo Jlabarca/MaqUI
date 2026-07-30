@@ -17,10 +17,17 @@ namespace Maqui.V2.Components
         /// <para>Pure composition of Icon + DrawText + Stepper — no new op. Reuses
         /// the P1 Stepper and the pro token classes.</para>
         /// </summary>
+        /// <param name="showStepper">V2-UI-PARITY.5.2: false genuinely OMITS the stepper
+        /// (not just disables it) — parity with legacy <c>SkillWindowEntry.UpdateLevelUpButton</c>'s
+        /// <c>SetActive(false)</c> when there are no points to spend, the skill is maxed, or
+        /// its prereqs aren't met. <see cref="Stepper"/> itself deliberately never omits its
+        /// own buttons (see its doc comment), so the hide has to happen one level up, here.
+        /// The level text stays — legacy hides only the button, never the "N / max" label.</param>
         public static int SkillEntry(this Gui gui, string key, string iconKey, string name,
             int level, int maxLevel, bool learned, bool canLevelUp = true, float iconSize = 30f,
             string className = null, string learnedClassName = null, string iconClassName = null,
-            string nameClassName = null, string levelClassName = null, string buttonClassName = null)
+            string nameClassName = null, string levelClassName = null, string buttonClassName = null,
+            bool showStepper = true)
         {
             int delta = 0;
             string cls = learned ? (learnedClassName ?? className) : className;
@@ -51,11 +58,14 @@ namespace Maqui.V2.Components
                         {
                             gui.DrawText($"{level} / {maxLevel}", className: levelClassName);
                             gui.Spacer(Size.Expand());
-                            // Skill-down is not a server command, so the − side is
-                            // disabled; + is gated on canLevelUp.
-                            delta = gui.Stepper(key + "-lv", string.Empty,
-                                buttonClassName: buttonClassName,
-                                canDecrement: false, canIncrement: canLevelUp);
+                            if (showStepper)
+                            {
+                                // Skill-down is not a server command, so the − side is
+                                // disabled; + is gated on canLevelUp.
+                                delta = gui.Stepper(key + "-lv", string.Empty,
+                                    buttonClassName: buttonClassName,
+                                    canDecrement: false, canIncrement: canLevelUp);
+                            }
                         }
                         gui.EndRow();
                     }

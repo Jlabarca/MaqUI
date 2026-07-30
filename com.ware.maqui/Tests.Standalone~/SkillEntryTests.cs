@@ -64,6 +64,45 @@ namespace Maqui.V2.Tests
         }
 
         [Fact]
+        public void SkillEntry_ShowStepperFalse_OmitsStepperButtons()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            gui.SkillEntry("bash", "skill_bash", "Bash", 5, 10, learned: true, showStepper: false);
+            gui.EndFrame();
+
+            // Stepper renders two OnClick-bearing Column buttons; with showStepper
+            // false, zero of those should exist — only the icon/name/level containers.
+            int clickable = gui.Buffer.Ops.Count(o => o.Kind == FrameOpKind.OnClick);
+            Assert.Equal(0, clickable);
+        }
+
+        [Fact]
+        public void SkillEntry_ShowStepperFalse_StillDrawsLevelText()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            gui.SkillEntry("bash", "skill_bash", "Bash", 3, 10, learned: true, showStepper: false);
+            gui.EndFrame();
+
+            // V2-UI-PARITY.5.2: legacy hides only the button, never the "N / max" label.
+            var texts = gui.Buffer.Ops.Where(o => o.Kind == FrameOpKind.DrawText).Select(o => o.Text).ToList();
+            Assert.Contains("3 / 10", texts);
+        }
+
+        [Fact]
+        public void SkillEntry_ShowStepperDefaultsTrue_ExistingCallersUnaffected()
+        {
+            var gui = new Gui();
+            gui.BeginFrame();
+            gui.SkillEntry("bash", "skill_bash", "Bash", 5, 10, learned: true);
+            gui.EndFrame();
+
+            int clickable = gui.Buffer.Ops.Count(o => o.Kind == FrameOpKind.OnClick);
+            Assert.True(clickable > 0, "default showStepper=true must still render the stepper buttons");
+        }
+
+        [Fact]
         public void SkillEntry_IsMaterializedByTheReconciler()
         {
             var gui = new Gui();
