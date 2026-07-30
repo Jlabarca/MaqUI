@@ -19,10 +19,15 @@ namespace Maqui.V2.Components
         /// </summary>
         /// <returns>The stepper delta chosen this frame (-1/0/+1); always 0 when
         /// <paramref name="showStepper"/> is false.</returns>
+        /// <param name="costText">V2-UI-PARITY.4.2: optional next-point-cost marker
+        /// (e.g. legacy StatsWindow's per-stat cost column, "-" at cap), drawn between
+        /// <paramref name="bonus"/> and the stepper. Null draws nothing — every existing
+        /// caller is unaffected.</param>
         public static int StatRow(this Gui gui, string key, string label, string value,
             string bonus = null, bool showStepper = false,
             string labelClassName = null, string valueClassName = null, string bonusClassName = null,
-            string buttonClassName = null, bool canDecrement = true, bool canIncrement = true)
+            string buttonClassName = null, bool canDecrement = true, bool canIncrement = true,
+            string costText = null, string costClassName = null)
         {
             int delta = 0;
 
@@ -34,6 +39,9 @@ namespace Maqui.V2.Components
 
                 if (!string.IsNullOrEmpty(bonus))
                     gui.DrawText(bonus, className: bonusClassName);
+
+                if (costText != null)
+                    gui.DrawText(costText, className: costClassName);
 
                 if (showStepper)
                     delta = gui.Stepper(key + "-st", string.Empty,
