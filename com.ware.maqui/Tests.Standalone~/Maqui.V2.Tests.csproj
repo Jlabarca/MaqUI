@@ -66,6 +66,7 @@
     <Compile Remove="..\Runtime\V2\SdfBackend.cs" />
     <Compile Remove="..\Runtime\V2\UIToolkitInteractionAdapter.cs" />
     <Compile Remove="..\Runtime\V2\ResourcesImageLoader.cs" />
+    <Compile Remove="..\Runtime\V2\TooltipOverlay.cs" />
     <!--
       UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
       MonoBehaviour which the UnityShim does not cover. These compile only
@@ -74,6 +75,10 @@
       SdfBackend references UnityEngine.Vector4 + MaterialPropertyBlock —
       blind draft for MAQUIV2.3, not exercised by xUnit. Excluded same as
       UIToolkitBackend until Unity Editor validation.
+
+      TooltipOverlay (V2-UI-PARITY.3.4) references UnityEngine.UIElements +
+      MonoBehaviour + UIDocument, same ceiling as UIToolkitBackend — its
+      regression coverage is a live WindowProbe sweep, not dotnet test.
     -->
   </ItemGroup>
 

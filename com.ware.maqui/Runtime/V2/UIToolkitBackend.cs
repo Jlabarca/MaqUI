@@ -228,6 +228,10 @@ namespace Maqui.V2
                     // which take a different path — themed correctly.
                     if (op.Color.a > 0) element.style.backgroundColor = new StyleColor(op.Color);
                     ApplySizeIfSet(element, in op);
+                    // V2-UI-PARITY.3.1: Box's height-max (Size.Max on Box's height arg)
+                    // reuses MaxHeight the same way RowBegin/ColumnBegin/ScrollBegin
+                    // already do below — Box never read it before this.
+                    if (op.MaxHeight > 0f) element.style.maxHeight = op.MaxHeight;
                     // v0 default chrome: every filled rect gets a small corner
                     // radius so stock components (Button, Toggle pill, ...)
                     // don't read as bare UGUI-default flat rectangles.
@@ -511,6 +515,15 @@ namespace Maqui.V2
             // kind, so either slot maps to flexGrow.
             if (wKind == SizeKind.Expand) element.style.flexGrow = op.FloatB > 0f ? op.FloatB : 1f;
             if (hKind == SizeKind.Expand) element.style.flexGrow = op.FloatD > 0f ? op.FloatD : 1f;
+
+            // V2-UI-PARITY.3.1 — min/max constraints, unconditional (outside the SizeKind
+            // switch above) so they apply even to Fit/Ratio nodes that get no explicit
+            // width/height style today. This is the actual "stop shrinking below
+            // min-content" primitive: a Fit column with WithMin(200) still hugs its
+            // content up to 200px, then refuses to shrink further under pressure.
+            if (op.WidthMin > 0f) element.style.minWidth = op.WidthMin;
+            if (op.WidthMax > 0f) element.style.maxWidth = op.WidthMax;
+            if (op.HeightMin > 0f) element.style.minHeight = op.HeightMin;
         }
 
         /// <summary>Resolve a DrawImage key and paint it as the element's
@@ -588,6 +601,23 @@ namespace Maqui.V2
             element.style.alignItems = StyleKeyword.Null;
             element.style.paddingLeft = StyleKeyword.Null;
             element.style.paddingRight = StyleKeyword.Null;
+            // V2-UI-PARITY.3.1: maxWidth/minHeight are the new min/max constraint half
+            // ApplySizeIfSet now writes (see above) — must be reset like minWidth/maxHeight
+            // already were, or a recycled element keeps a stale constraint from its
+            // previous occupant's role.
+            element.style.maxWidth = StyleKeyword.Null;
+            element.style.minHeight = StyleKeyword.Null;
+            // V2-UI-PARITY.3.5: pre-existing gap found while auditing the above — these
+            // are set once at element-creation time (Build(), below) for Row/Column/
+            // ClipBox but were never in the reset set. The pool funnels every
+            // non-specialized element (Row/Column/ClipBox/Box/Spacer/DrawRect/DrawLine/
+            // DrawCircle/DrawImage) through ONE FrameOpKind.Box-keyed bucket on Recycle
+            // (see TryPop/Push below), so a Box rented from that bucket could silently
+            // inherit a former Row's flexDirection:Row or a former ClipBox's
+            // overflow:Hidden. Currently harmless (every live Box call site is
+            // childless), but cheap to close now that 3.1 already touches this method.
+            element.style.flexDirection = StyleKeyword.Null;
+            element.style.overflow = StyleKeyword.Null;
 
             // Paint.
             element.style.backgroundColor = StyleKeyword.Null;

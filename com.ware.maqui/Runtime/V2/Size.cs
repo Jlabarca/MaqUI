@@ -38,10 +38,20 @@ namespace Maqui.V2
         public SizeKind Kind { get; }
         public float Value { get; }
 
-        private Size(SizeKind kind, float value)
+        /// <summary>Floor in pixels below which the resolved size may not shrink. 0 = unset.
+        /// V2-UI-PARITY.3.1 — the "stop shrinking below min-content" primitive.</summary>
+        public float Min { get; }
+
+        /// <summary>Ceiling in pixels above which the resolved size may not grow. 0 = unset.
+        /// V2-UI-PARITY.3.1.</summary>
+        public float Max { get; }
+
+        private Size(SizeKind kind, float value, float min = 0f, float max = 0f)
         {
             Kind = kind;
             Value = value;
+            Min = min;
+            Max = max;
         }
 
         public static Size Fit() => new Size(SizeKind.Fit, 1f);
@@ -55,6 +65,15 @@ namespace Maqui.V2
         /// implicit conversion. Lets call sites write <c>.Width(200)</c>.</summary>
         public static implicit operator Size(float pixels) => Pixels(pixels);
         public static implicit operator Size(int pixels) => Pixels(pixels);
+
+        /// <summary>Returns a copy with a pixel floor. V2-UI-PARITY.3.1.</summary>
+        public Size WithMin(float min) => new Size(Kind, Value, min, Max);
+
+        /// <summary>Returns a copy with a pixel ceiling. V2-UI-PARITY.3.1.</summary>
+        public Size WithMax(float max) => new Size(Kind, Value, Min, max);
+
+        /// <summary>Returns a copy with both a pixel floor and ceiling. V2-UI-PARITY.3.1.</summary>
+        public Size WithMinMax(float min, float max) => new Size(Kind, Value, min, max);
 
         public override string ToString() => Kind switch
         {

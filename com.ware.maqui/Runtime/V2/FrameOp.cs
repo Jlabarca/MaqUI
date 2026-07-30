@@ -124,8 +124,24 @@ namespace Maqui.V2
         /// <summary>Max height in pixels for a container; 0 = unset. Distinct from a
         /// fixed height: the container hugs its content and only caps (and, for a
         /// ScrollBox, starts scrolling) once content exceeds this. A fixed height
-        /// would instead reserve the full box even when the content is tiny.</summary>
+        /// would instead reserve the full box even when the content is tiny.
+        /// V2-UI-PARITY.3.1 also reuses this field as the generic per-element
+        /// height-max for Row/Column/Box (see <see cref="Size.Max"/>) — there is no
+        /// separate <c>HeightMax</c> field; the semantics are identical (a cap that
+        /// doesn't reserve space it doesn't need).</summary>
         public float MaxHeight { get; }
+
+        /// <summary>Pixel floor on the element's resolved width; 0 = unset.
+        /// V2-UI-PARITY.3.1, carries <see cref="Size.Min"/> for the width axis.</summary>
+        public float WidthMin { get; }
+
+        /// <summary>Pixel ceiling on the element's resolved width; 0 = unset.
+        /// V2-UI-PARITY.3.1, carries <see cref="Size.Max"/> for the width axis.</summary>
+        public float WidthMax { get; }
+
+        /// <summary>Pixel floor on the element's resolved height; 0 = unset.
+        /// V2-UI-PARITY.3.1, carries <see cref="Size.Min"/> for the height axis.</summary>
+        public float HeightMin { get; }
 
         /// <summary>Optional style class for the element this op mints; null = none.
         /// The backend forwards it to the host framework's styling system (USS
@@ -144,7 +160,8 @@ namespace Maqui.V2
             string text = null,
             AlignItems alignItems = AlignItems.Stretch,
             float maxHeight = 0f,
-            string className = null)
+            string className = null,
+            float widthMin = 0f, float widthMax = 0f, float heightMin = 0f)
         {
             MaxHeight = maxHeight;
             ClassName = className;
@@ -158,6 +175,9 @@ namespace Maqui.V2
             Color = color;
             Text = text;
             AlignItems = alignItems;
+            WidthMin = widthMin;
+            WidthMax = widthMax;
+            HeightMin = heightMin;
         }
 
         public override string ToString()

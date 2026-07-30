@@ -160,7 +160,8 @@ namespace Maqui.V2
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.RowBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, alignItems: alignItems, className: className));
+                color: background, alignItems: alignItems, className: className,
+                maxHeight: height.Max, widthMin: width.Min, widthMax: width.Max, heightMin: height.Min));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -186,7 +187,8 @@ namespace Maqui.V2
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.ColumnBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, alignItems: alignItems, className: className));
+                color: background, alignItems: alignItems, className: className,
+                maxHeight: height.Max, widthMin: width.Min, widthMax: width.Max, heightMin: height.Min));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -200,7 +202,8 @@ namespace Maqui.V2
             int id = NewNodeId();
             _frameBuffer.Record(new FrameOp(FrameOpKind.Box, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                className: className));
+                className: className,
+                maxHeight: height.Max, widthMin: width.Min, widthMax: width.Max, heightMin: height.Min));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
@@ -249,9 +252,12 @@ namespace Maqui.V2
             string className = null)
         {
             int id = NewNodeId();
+            // V2-UI-PARITY.3.1 Decision 2: the explicit maxHeight param wins over a
+            // Size.Max set on `height` if a caller (incorrectly) sets both — ScrollBox's
+            // longstanding scroll-cap behavior is unaffected by the new generic primitive.
             _frameBuffer.Record(new FrameOp(FrameOpKind.ScrollBegin, id, CurrentScopePath,
                 a: (float)width.Kind, b: width.Value, c: (float)height.Kind, d: height.Value,
-                color: background, maxHeight: maxHeight, className: className));
+                color: background, maxHeight: maxHeight > 0f ? maxHeight : height.Max, className: className));
             return new Node(this, id, _frameBuffer.Count - 1);
         }
 
