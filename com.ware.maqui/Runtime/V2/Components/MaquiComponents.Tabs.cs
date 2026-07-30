@@ -20,6 +20,18 @@ namespace Maqui.V2.Components
         ///
         /// <para>Pure Button composition — no new framework op. The active/inactive
         /// split is a className swap so USS owns the look (WL.2 delegate-don't-tint).</para>
+        ///
+        /// <para><b>Body is scoped per tab index.</b> The reconciler keys containers by
+        /// <c>(scopePath, kind, ordinal-within-scope)</c> — there is no caller-supplied
+        /// identity for Row/Column. Without a per-tab scope, every tab body renders into
+        /// the SAME scope, so "the Nth RowBegin" on one tab collides with "the Nth
+        /// RowBegin" on a differently-shaped tab and the backend reuses the wrong
+        /// element via <c>UpdateElement</c> (no style reset — that only runs on a real
+        /// pool rent). Confirmed live: a plain footer Row (Size.Expand/Size.Fit,
+        /// background: default) landed on a stale Toggle pill's inline 52x22 size and
+        /// non-transparent background after switching tabs, squeezing its Button
+        /// children to ~14px. <see cref="Gui.EnterDataScope"/> already exists for
+        /// exactly this (repeated/keyed content) — Tabs just wasn't using it.</para>
         /// </summary>
         public static int Tabs(this Gui gui, string key, int activeIndex, string[] labels,
             System.Action<int> renderContent = null,
@@ -44,7 +56,13 @@ namespace Maqui.V2.Components
             }
             gui.EndRow();
 
-            renderContent?.Invoke(selected);
+            if (renderContent != null)
+            {
+                using (gui.EnterDataScope($"{key}-body-{selected}"))
+                {
+                    renderContent(selected);
+                }
+            }
             return selected;
         }
     }
