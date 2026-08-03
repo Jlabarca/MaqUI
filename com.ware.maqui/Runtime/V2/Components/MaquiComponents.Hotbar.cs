@@ -49,12 +49,28 @@ namespace Maqui.V2.Components
                     var slot = gui.Column(Size.Pixels(slotSize), Size.Pixels(slotSize),
                         background: default, alignItems: AlignItems.Center, className: slotClassName);
                     {
-                        string label = labelForSlot != null ? labelForSlot(i) : DefaultHotkey(i);
-                        gui.DrawText(label, className: numberClassName);
-
+                        // Icon FIRST, hotkey badge second — two reasons, both required
+                        // for the badge to read as an overlay:
+                        //   1. paint order is DOM order, so the badge must come after
+                        //      the icon or the icon covers it;
+                        //   2. the number is expected to be positioned ABSOLUTELY by the
+                        //      host's stylesheet (ORO: `.ro-pro-hotnum`), which takes it
+                        //      out of flow entirely.
+                        // While the number sat in-flow above the icon, the icon had to be
+                        // shrunk by a whole text line to fit (`slotSize - 18f` = 26px in a
+                        // 44px cell) — the reported "hotbar icons are too small". Out of
+                        // flow, the icon gets the cell back; the 6px inset just keeps the
+                        // slot's own border and hover ring visible around it.
+                        //
+                        // A host that does NOT position `numberClassName` absolutely still
+                        // renders correctly — the badge simply sits under the icon in flow
+                        // instead of over it, which is a layout choice, not a break.
                         string iconKey = iconKeyForSlot?.Invoke(i);
                         if (!string.IsNullOrEmpty(iconKey))
-                            gui.Icon(iconKey, slotSize - 18f);
+                            gui.Icon(iconKey, slotSize - 6f);
+
+                        string label = labelForSlot != null ? labelForSlot(i) : DefaultHotkey(i);
+                        gui.DrawText(label, className: numberClassName);
                     }
                     gui.EndColumn();
 

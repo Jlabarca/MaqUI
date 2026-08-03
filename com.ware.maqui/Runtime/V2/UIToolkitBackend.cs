@@ -194,9 +194,60 @@ namespace Maqui.V2
             }
         }
 
+        /// <summary>
+        /// Whether an op's element takes part in hit-testing. Draw leaves do NOT:
+        /// they are decorative by construction (the framework's interactive unit is
+        /// always a CONTAINER — <c>Button</c>, <c>ItemSlot</c>, <c>EquipSlot</c> and
+        /// <c>Hotbar</c> are all clickable <c>Column</c>s wrapping an icon and a
+        /// label), and no caller anywhere in this package or in ORO captures a
+        /// draw-leaf <see cref="Node"/> to query interaction on it.
+        ///
+        /// <para><b>Why this matters (the bug it fixes).</b> UI Toolkit defaults every
+        /// element to <c>PickingMode.Position</c>, and nothing here used to override
+        /// it. A press over an <c>ItemSlot</c>'s icon therefore had the ICON as its
+        /// direct target — and <see cref="UIToolkitInteractionAdapter"/> arms the drag
+        /// source only for the direct target (deliberately: without that gate every
+        /// ancestor overwrote the source with the outermost container). So the slot
+        /// never armed and <c>OnDragStart()</c> never fired. The only region that
+        /// worked was the few pixels of slot rim the icon did not cover, which is
+        /// exactly the reported symptom: "drag only starts from a very specific small
+        /// point". Clicks were unaffected — Hover/Active/Clicked flag every node in
+        /// the bubble chain — which is why every parity checklist passed this.</para>
+        ///
+        /// <para>Applied from <see cref="ApplyProps"/> rather than <see cref="Build"/>
+        /// because elements are POOLED: <see cref="Recycle"/> pushes a plain
+        /// <c>VisualElement</c> back under the <c>Box</c> bucket regardless of the op
+        /// it was built for, so a former DrawImage can be popped as a container. Keying
+        /// off the CURRENT op every frame is the only pooling-proof placement.</para>
+        ///
+        /// <para>Need a clickable image? Wrap it in a <c>Box</c>/<c>Column</c> and read
+        /// interaction from that — the same idiom every existing component uses.</para>
+        /// </summary>
+        private static PickingMode PickingFor(FrameOpKind kind)
+        {
+            switch (kind)
+            {
+                case FrameOpKind.DrawText:
+                case FrameOpKind.DrawImage:
+                case FrameOpKind.DrawRect:
+                case FrameOpKind.DrawLine:
+                case FrameOpKind.DrawCircle:
+                case FrameOpKind.Spacer:
+                    return PickingMode.Ignore;
+                default:
+                    return PickingMode.Position;
+            }
+        }
+
         private void ApplyProps(VisualElement element, in FrameOp op)
         {
             ApplyClassName(element, op.ClassName);
+
+            // Cheap guard rather than an unconditional write: this runs for every
+            // element every frame, and pickingMode is a plain field set that would
+            // otherwise churn needlessly.
+            var picking = PickingFor(op.Kind);
+            if (element.pickingMode != picking) element.pickingMode = picking;
 
             switch (op.Kind)
             {

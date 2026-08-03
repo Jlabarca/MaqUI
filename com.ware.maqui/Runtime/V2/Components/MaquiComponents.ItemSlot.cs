@@ -52,8 +52,14 @@ namespace Maqui.V2.Components
             var slot = gui.Column(Size.Pixels(size), Size.Pixels(size), background: default,
                 alignItems: AlignItems.Center, className: cls);
             {
+                // 4px inset (was 8): enough to keep the slot border and hover ring
+                // readable around the icon, without spending a quarter of a 40px cell
+                // on empty padding. The count below is expected to be positioned
+                // absolutely by the host stylesheet (ORO: `.ro-slot__count`), so it
+                // costs no height here; a host that leaves it in flow still renders,
+                // it just stacks instead of overlaying.
                 if (!string.IsNullOrEmpty(iconKey))
-                    gui.Icon(iconKey, size - 8f);
+                    gui.Icon(iconKey, size - 4f);
                 // Stacks of 1 (or unset) don't draw a count — matches RO.
                 if (count > 1)
                     gui.DrawText(count.ToString(), className: countClassName);
