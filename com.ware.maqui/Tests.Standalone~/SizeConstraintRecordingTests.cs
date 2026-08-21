@@ -4,10 +4,10 @@
 // reachable by dotnet test — the backend-application half needs the Unity
 // Editor (UIToolkitBackend.cs is excluded from this project).
 
-using Maqui.V2;
+using Maqui;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class SizeConstraintRecordingTests
     {

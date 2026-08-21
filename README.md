@@ -1,393 +1,96 @@
 # Maqui
 
-**Reactive MVVM UI framework for Unity.**
-R3-powered ViewModels · VitalRouter command routing · Layer-based window management · HybridFrame-ready plugin architecture.
+**Immediate-mode UI framework for Unity, on a retained reconciler.**
+Declarative per-frame widget code · pooled UI Toolkit backend · headless-testable pure layer.
 
 > Requires Unity 2022.3 LTS or newer.
 
 ---
 
-## Features
+## What it is
 
-- **MVVM without the ceremony** — `ViewModel` (pure C#) + `ReactiveBaseView<T>` (Unity). No code-gen, no DI container required.
-- **R3 reactive state** — `ReactiveProperty<T>`, `CompositeDisposable`, first-class `async/await` via UniTask.
-- **VitalRouter command bus** — `[Route]` attributes on windows for clean show/hide intent. `ICommandInterceptor` for cross-cutting concerns.
-- **Four-layer Canvas hierarchy** — `Background / Default / Overlay / Modal` managed automatically by `MaquiWindowManager`.
-- **Modal freeze system** — Opening a `Modal` window auto-activates the mask overlay and calls `OnFreeze()` on every active view. Closing restores everything.
-- **Async asset loading** — Swappable `IMaquiAssetProvider`. Ships with `ResourcesAssetProvider` (synchronous). Drop in a YooAsset or Addressables adapter with one call.
-- **Runtime theming** — `ThemeData` ScriptableObject with 13 color slots. `ThemeImageSubscriber` / `ThemeTextSubscriber` components require zero code.
-- **Zero-config bootstrap** — `[RuntimeInitializeOnLoadMethod]` fires before any scene loads. No prefab, no scene setup, no manual Awake ordering.
-- **Plugin-safe** — `IUIService` / `IWindowHandle` contracts integrate with [HybridFrame](https://github.com/waremoto/hybridframe)'s `SandboxedPluginAPI`. `CleanupPlugin()` destroys all windows on plugin unload.
+You write UI as a function of state that runs every frame:
 
----
+```csharp
+private static void BuildUI(Gui gui)
+{
+    gui.Column(default, default, className: "panel");
+    {
+        gui.DrawText($"HP {_hp}/{_max}", className: "title");
+        gui.Bar("hp", _hp / (float)_max);
+
+        if (gui.Button("Heal", key: "heal"))
+            _hp = _max;
+    }
+    gui.EndColumn();
+}
+```
+
+There is no view class to keep in sync, no binding to wire, and no prefab to author. The call
+sequence *is* the UI. Between frames a reconciler diffs the recorded frame against the live
+`VisualElement` tree and applies only what changed, reusing pooled elements — so you get
+immediate-mode ergonomics at retained-mode cost.
+
+## Why it is built this way
+
+- **A frame is a value.** `Gui` records into a `FrameBuffer` of `FrameOp`s. Nothing touches Unity
+  during your build function, which is what makes the interesting half testable without an Editor.
+- **The pure layer is the tested layer.** Layout maths, the reconciler, scroll offsets, text
+  ramping, flow-column counts and every component's state machine live in plain C# and run under
+  `dotnet test` in milliseconds — see `com.ware.maqui/Tests.Standalone~` (286 tests).
+- **The backend is swappable.** `IBackend` is the seam; `UIToolkitBackend` is the shipping
+  implementation. Unity-facing code is deliberately thin, because that is where the bugs live.
+- **Keys, not positions.** Repeated or conditional content must be wrapped in
+  `gui.EnterDataScope(key)`. Without it the reconciler matches by position and a container can be
+  handed a pooled node that was something else last frame, inheriting its inline styles.
+
+## Components
+
+Built on the primitives (`Row`, `Column`, `Box`, `ScrollBox`, `DrawText`, `DrawRect`, `DrawImage`,
+`DrawLine`, `DrawCircle`, `Spacer`, `ClipBox`):
+
+`Bar` · `Button` · `Dropdown` · `EquipSlot` · `FlowGrid` · `Grid` · `Hotbar` · `Icon` · `Image` ·
+`ItemSlot` · `ProgressBar` · `SkillEntry` · `Slider` · `StatRow` · `Stepper` · `Tabs` · `TextInput` ·
+`Toggle` · `TogglePill` · `Tooltip` · `UnitFrame`
+
+Responsiveness primitives: `Size.WithMin/Max`, `TextScale.Ramp`, `HidePriority`, `FlowLayout.Columns`,
+and a floating `TooltipOverlay`.
 
 ## Requirements
 
 | Dependency | Version | How to install |
 |:---|:---|:---|
 | **Unity** | 2022.3 LTS+ | — |
-| **R3** | latest | Git UPM (see below) |
-| **UniTask** | latest | Git UPM (see below) |
-| **VitalRouter** | 2.2.0+ | Git UPM (see below) |
-| **VitalRouter.R3** | 2.2.0+ | NuGetForUnity (see below) |
-
-> **Note**: Some bundled samples (Welcome, GrandTour, SharkSuite) still reference DevsDaddy OneUI (`UIFramework`). The core `Maqui.Runtime` assembly does **not** depend on OneUI.
-
----
-
-## Installation
-
-### Option A — Local path (same repository)
-
-Add to your project's `Packages/manifest.json`:
-
-```json
-{
-  "dependencies": {
-    "com.ware.maqui": "file:../../com.ware.maqui",
-    "com.cysharp.r3": "https://github.com/Cysharp/R3.git?path=src/R3.Unity/Assets/R3.Unity",
-    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
-    "com.hadashia.vitalrouter": "https://github.com/hadashiA/VitalRouter.git?path=/src/VitalRouter.Unity/Assets/VitalRouter#2.2.0"
-  },
-  "testables": ["com.ware.maqui"]
-}
-```
-
-### Option B — Git URL
-
-```json
-{
-  "dependencies": {
-    "com.ware.maqui": "https://github.com/waremoto/maqui.git",
-    "com.cysharp.r3": "https://github.com/Cysharp/R3.git?path=src/R3.Unity/Assets/R3.Unity",
-    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
-    "com.hadashia.vitalrouter": "https://github.com/hadashiA/VitalRouter.git?path=/src/VitalRouter.Unity/Assets/VitalRouter#2.2.0"
-  }
-}
-```
-
-### VitalRouter Unity package (Git UPM)
-
-VitalRouter's core Unity integration is installed via Git URL above. It includes the Roslyn source generator for `[Routes]` / `[Subscribe]` and all runtime types.
-
-### VitalRouter.R3 via NuGetForUnity
-
-`VitalRouter.R3` (UniTask + R3 bridge for VitalRouter) is distributed via NuGet only:
-
-1. Install [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) in your project.
-2. Open **NuGet → Manage NuGet Packages** and install `VitalRouter.R3`.
-
----
-
-## Quick Start
-
-### 1. Create a ViewModel
-
-```csharp
-using Maqui.Core.Logic;
-using R3;
-
-// Pure C# — no UnityEngine references
-public class GreetingViewModel : ViewModel
-{
-    public readonly ReactiveProperty<string> Message = new("Hello, Maqui!");
-    public readonly ReactiveProperty<int> ClickCount = new(0);
-
-    public void OnButtonClicked() => ClickCount.Value++;
-}
-```
-
-### 2. Create a View
-
-```csharp
-using Maqui.Core.Presentation;
-using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
-
-public class GreetingView : ReactiveBaseView<GreetingViewModel>
-{
-    [SerializeField] private TMP_Text messageLabel;
-    [SerializeField] private TMP_Text countLabel;
-    [SerializeField] private Button clickButton;
-
-    protected override void OnBind()
-    {
-        ViewModel.Message
-            .Subscribe(msg => messageLabel.text = msg)
-            .AddTo(Disposables);
-
-        ViewModel.ClickCount
-            .Subscribe(n => countLabel.text = $"Clicks: {n}")
-            .AddTo(Disposables);
-
-        clickButton.onClick
-            .AsObservable()
-            .Subscribe(_ => ViewModel.OnButtonClicked())
-            .AddTo(Disposables);
-    }
-}
-```
-
-### 3. Create a Prefab
-
-- Create a UI prefab. The root needs a `CanvasGroup` component.
-- Add the `GreetingView` MonoBehaviour and wire up the serialized fields.
-- **Do not add a `Canvas` component** — Maqui parents it to the appropriate layer canvas.
-
-### 4. Open the Window
-
-```csharp
-using Maqui.Core;
-using Maqui.Core.Presentation;
-using Cysharp.Threading.Tasks;
-
-// Via IUIService (recommended — layer-aware, async, plugin-safe):
-var vm = new GreetingViewModel();
-var uiService = MaquiServices.Get<IUIService>();
-var handle = await uiService.ShowWindowAsync<GreetingView, GreetingViewModel>(
-    "Views/GreetingView",   // asset key (Resources path by default)
-    UILayer.Default,
-    vm,
-    destroyCancellationToken
-);
-
-// Close:
-handle.Dispose();
-```
-
-Or use `MaquiNavigator` for simple projects (no layer system):
-
-```csharp
-using Maqui.Core.Bridge;
-MaquiNavigator.NavigateReactive<GreetingView, GreetingViewModel>("Views/GreetingView");
-```
-
----
-
-## Window Layers
-
-`MaquiWindowManager` creates four persistent Canvases under `Maqui_Core` on startup:
-
-| Layer | Sort Order | Typical Use |
-|:---|:---:|:---|
-| `UILayer.Background` | 0 | Skybox overlays, cutscene letterbox |
-| `UILayer.Default` | 100 | Main panels: inventory, character, map, NPC dialog |
-| `UILayer.Overlay` | 200 | HUD: HP bars, minimap, hotbar, buff icons |
-| `UILayer.Modal` | 300 | Blocking dialogs, fullscreen content, plugin store |
-
-A `ModalMask` Canvas (sortOrder 290, semi-transparent black) activates automatically when any Modal window opens and deactivates when the last one closes.
-
----
-
-## VitalRouter Command Routing
-
-### Window subscribes to its own open/close commands
-
-```csharp
-using VitalRouter;
-using Cysharp.Threading.Tasks;
-using System.Threading;
-
-public readonly record struct OpenInventoryCommand : ICommand;
-public readonly record struct CloseInventoryCommand : ICommand;
-
-[Routes(CommandOrdering.Sequential)]
-public partial class InventoryWindow : ReactiveBaseView<InventoryViewModel>
-{
-    [Route]
-    public async UniTask On(OpenInventoryCommand cmd, CancellationToken ct)
-    {
-        await MaquiServices.Get<IAnimationBridge>().FadeAsync(GetComponent<CanvasGroup>(), 1f, 0.2f, ct);
-    }
-
-    [Route]
-    public void On(CloseInventoryCommand cmd) => HideView();
-
-    protected override void OnBind()
-    {
-        this.MapTo(Router.Default).AddTo(Disposables);
-        ViewModel.Items
-            .Subscribe(RefreshGrid)
-            .AddTo(Disposables);
-    }
-}
-```
-
-### Cross-cutting interceptors
-
-```csharp
-public class AuthInterceptor : ICommandInterceptor
-{
-    public async UniTask InvokeAsync<T>(T cmd, CancellationToken ct, Func<T, CancellationToken, UniTask> next)
-        where T : ICommand
-    {
-        if (!PlayerSession.IsAuthenticated)
-        {
-            Router.Default.PublishAsync(new ShowLoginCommand()).Forget();
-            return;
-        }
-        await next(cmd, ct);
-    }
-}
-
-// In a MonoBehaviour:
-private AuthInterceptor _auth;
-private void Start() { _auth = new AuthInterceptor(); Router.Default.AddFilter(_auth); }
-private async void OnDestroy() { await Router.Default.UnfilterAsync<AuthInterceptor>(); }
-```
-
----
-
-## Freeze-Aware Windows
-
-Windows that need custom behaviour when a Modal opens override `OnFreeze` / `OnUnfreeze`:
-
-```csharp
-public class HUDWindow : ReactiveBaseView<HUDViewModel>
-{
-    [SerializeField] private CanvasGroup inputGroup;
-
-    protected override void OnFreeze()   => inputGroup.interactable = false;
-    protected override void OnUnfreeze() => inputGroup.interactable = true;
-
-    protected override void OnBind()
-    {
-        ViewModel.CurrentHP
-            .Subscribe(hp => hpBar.value = hp)
-            .AddTo(Disposables);
-    }
-}
-```
-
----
-
-## Async Pre-fetch
-
-`OnPreShowAsync` runs after the prefab is instantiated but before `OnBind()` and any show animation. Use it to fetch data that must be ready before the window is visible:
-
-```csharp
-protected override async UniTask OnPreShowAsync(CancellationToken ct)
-{
-    await ViewModel.LoadCharacterDataAsync(ct);
-}
-```
-
----
-
-## Runtime Theming
-
-### No-code (Inspector)
-
-Add `ThemeImageSubscriber` or `ThemeTextSubscriber` to any UI component, pick a `ColorType` slot — done.
-
-### In code
-
-```csharp
-// Switch theme at runtime:
-var darkTheme = Resources.Load<ThemeData>("Themes/Theme_Dark");
-MaquiServices.Get<IThemeProvider>()?.SetTheme(darkTheme);
-
-// React in a View:
-MaquiServices.Get<IThemeProvider>()?.CurrentTheme
-    .Subscribe(t => background.color = t.GetColor(ThemeColorType.BackgroundPrimary))
-    .AddTo(Disposables);
-```
-
----
-
-## Custom Asset Provider
-
-The default `ResourcesAssetProvider` uses synchronous `Resources.Load`. To use YooAsset, Addressables, or any other system, implement `IMaquiAssetProvider` and register it early in your boot sequence — before any window opens:
-
-```csharp
-public class YooAssetProvider : IMaquiAssetProvider
-{
-    public async UniTask<GameObject> LoadPrefabAsync(string key, CancellationToken ct)
-    {
-        var handle = YooAssets.LoadAssetAsync<GameObject>(key);
-        await handle.ToUniTask(cancellationToken: ct);
-        return handle.AssetObject as GameObject;
-    }
-
-    public void ReleasePrefab(string key) => YooAssets.UnloadUnusedAssets();
-}
-
-// In boot:
-MaquiAssetProviderBridge.SetProvider(new YooAssetProvider());
-```
-
----
-
-## HybridFrame Integration
-
-Maqui is designed to run as the UI layer of a [HybridFrame](https://github.com/waremoto/hybridframe) application. `MaquiWindowManager` implements `IUIService`, which you register with HF's service locator:
-
-```csharp
-// After CoreBootstrap has run (it fires BeforeSceneLoad, so MaquiWindowManager exists):
-HF.Register<IUIService>(MaquiServices.Get<IUIService>());
-```
-
-Plugin UI creation flows through `SandboxedPluginAPI → IUIService.ShowPrefabAsync(pluginId: ...)`. On plugin unload:
-
-```csharp
-public void OnUnload() => HF.Get<IUIService>().CleanupPlugin(Manifest.Id);
-```
-
-This destroys all windows registered under that plugin ID without requiring the plugin to track them individually.
-
----
-
-## Documentation
-
-- **[CharqUI/docs/CONTEXT.md](CharqUI/docs/CONTEXT.md)** — project state, architecture decisions, what's built, next steps
-- **[CharqUI/docs/README.md](CharqUI/docs/README.md)** — full documentation index
-- **[CharqUI/docs/DOCS-PROTOCOL.md](CharqUI/docs/DOCS-PROTOCOL.md)** — documentation rules and conventions
-
----
+| **UniTask** | latest | Git UPM |
+| **R3** | latest | Git UPM |
 
 ## Samples
 
-Import samples via **Package Manager → Maqui → Samples**.
-
 | Sample | What it shows |
 |:---|:---|
-| **Welcome** | Minimal routing flow: publish a command, intercept it, navigate to a new view |
-| **Grand Tour** | Multi-screen app with shared `GlobalAppStateViewModel`, theming, and hybrid uGUI + UI Toolkit |
-| **Shark Suite** | Reactive inventory: UI Toolkit list + uGUI detail panel driven by one ViewModel |
-| **Modernization** | Before/after: migrating a procedural view to MVVM with ThemeSubscriber |
+| **Hello World** | The `Gui` loop, a window, a few widgets. |
+| **Draggable Handle** | Pointer interaction through the interaction adapter. |
+
+## Testing
+
+```bash
+dotnet test com.ware.maqui/Tests.Standalone~/Maqui.Tests.csproj
+```
+
+The Unity-side assemblies (`UIToolkitBackend`, `GuiDriver`, `SdfBackend`,
+`UIToolkitInteractionAdapter`, `ResourcesImageLoader`, `TooltipOverlay`) are excluded from that
+project by design — they are exercised in-Editor instead.
 
 ---
 
-## Project Structure
+## History
 
-```
-com.ware.maqui/
-├── Runtime/Core/
-│   ├── CoreBootstrap.cs            Zero-config startup
-│   ├── Bridge/                     AnimationBridge, ThemeProvider, RouterBridge,
-│   │                               InputBridge, MaquiNavigator, IMaquiAssetProvider
-│   ├── Logic/                      ViewModel, ThemeData, ThemeColorType
-│   └── Presentation/               ReactiveBaseView<T>, MaquiWindowManager,
-│                                   IUIService, IWindowHandle, UILayer,
-│                                   ThemeSubscriber, ThemeImageSubscriber, ThemeTextSubscriber
-├── Editor/
-├── Tests/
-│   ├── Runtime/                    ViewModelTests, ThemeDataTests
-│   └── Editor/                     MaquiEditorTests
-└── Samples~/
-    ├── Welcome/
-    ├── GrandTour/
-    ├── SharkSuite/
-    └── Modernization/
-```
+Maqui shipped a reactive **MVVM** framework first — `ViewModel` + `ReactiveProperty<T>`,
+`ReactiveBaseView<T>`, VitalRouter command routing, a four-layer Canvas hierarchy and a modal freeze
+system. That stack was **removed in full on 2026-08-21**; the immediate-mode framework described
+above replaced it, and "Maqui" now means what was previously called "Maqui V2".
 
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
-Built on top of [R3](https://github.com/Cysharp/R3), [UniTask](https://github.com/Cysharp/UniTask), and [VitalRouter](https://github.com/hadashiA/VitalRouter).
-
-Designed for use with [HybridFrame](https://github.com/waremoto/hybridframe).
+If you are reading old notes: `Maqui.V2` is now `Maqui`, `Runtime/V2/` is now `Runtime/`, and
+anything referring to `MaquiServices`, `IUIService`, `MaquiBaseView`, `ReactiveBaseView`,
+`MaquiWindowManager` or `ThemeData` describes deleted code. Rationale and the full removal record:
+`docs/MAQUI-V2-IMPL.md` here, and `docs/MAQUI-V1-SUNSET-IMPL.md` in the ORO repo.

@@ -1,0 +1,85 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Maqui.Tests — standalone xUnit test project for MaqUI v2.
+
+    Runs in `dotnet test` against a Unity-shimmed compile of Runtime/*.cs.
+    Lives under Tests.Standalone~/ — the `~` suffix tells Unity to ignore this
+    folder (same trick as Samples~). Unity Test Runner does NOT see this
+    project; a separate Maqui.Tests.Editor NUnit asmdef will be re-introduced
+    in P3/P4/P5/P6 for tests that genuinely need Unity (PlayMode, render,
+    UnityEngine.Object lifecycle).
+
+    For Maqui v2 Phase 1 — pure data structures + record-only stubs — every
+    assertion is reachable here without Unity.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Maqui.Tests</RootNamespace>
+    <AssemblyName>Maqui.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      Defining UNITY_TESTS_STANDALONE flags compile units that need to behave
+      differently when consumed standalone (e.g., if a source file ever needs
+      a conditional [assembly: …] line). None today; flag is forward-looking.
+    -->
+    <DefineConstants>$(DefineConstants);UNITY_TESTS_STANDALONE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="8.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+    Compile the v2 source files directly into the test assembly, together
+    with a tiny UnityEngine shim. This means the standalone tests run against
+    the *same* source the Unity-compiled Maqui.dll runs against — no
+    drift, no DLL-reference brittleness. Adding a new file under Runtime/
+    automatically picks it up here.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Runtime\*.cs" LinkBase="Runtime" />
+    <Compile Include="..\Runtime\Components\*.cs" LinkBase="Components" />
+    <Compile Include="..\Tools\*.cs" LinkBase="Tools" />
+    <Compile Remove="..\Runtime\AssemblyInfo.cs" />
+    <!--
+      AssemblyInfo.cs has [InternalsVisibleTo("Maqui.Tests")] which is
+      meaningful when compiled into the production Maqui assembly inside
+      Unity. Re-emitting it here would assign it to the test assembly itself —
+      harmless but noisy. Skip.
+    -->
+    <Compile Remove="..\Runtime\UIToolkitBackend.cs" />
+    <Compile Remove="..\Runtime\GuiDriver.cs" />
+    <Compile Remove="..\Runtime\SdfBackend.cs" />
+    <Compile Remove="..\Runtime\UIToolkitInteractionAdapter.cs" />
+    <Compile Remove="..\Runtime\ResourcesImageLoader.cs" />
+    <Compile Remove="..\Runtime\TooltipOverlay.cs" />
+    <!--
+      UIToolkitBackend + GuiDriver reference UnityEngine.UIElements +
+      MonoBehaviour which the UnityShim does not cover. These compile only
+      inside Unity Editor (MAQUIV2.2 blind drafts).
+
+      SdfBackend references UnityEngine.Vector4 + MaterialPropertyBlock —
+      blind draft for MAQUIV2.3, not exercised by xUnit. Excluded same as
+      UIToolkitBackend until Unity Editor validation.
+
+      TooltipOverlay (V2-UI-PARITY.3.4) references UnityEngine.UIElements +
+      MonoBehaviour + UIDocument, same ceiling as UIToolkitBackend — its
+      regression coverage is a live WindowProbe sweep, not dotnet test.
+    -->
+  </ItemGroup>
+
+</Project>

@@ -6,11 +6,11 @@
 // recording≠rendering lesson — that the strip materializes through the reconciler.
 
 using System.Linq;
-using Maqui.V2;
-using Maqui.V2.Components;
+using Maqui;
+using Maqui.Components;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class TabsTests
     {

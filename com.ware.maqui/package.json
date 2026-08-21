@@ -31,12 +31,12 @@
     {
       "displayName": "Hello World",
       "description": "A minimal scene showing the Gui loop, a window and a few widgets.",
-      "path": "Samples~/V2/HelloWorld"
+      "path": "Samples~/HelloWorld"
     },
     {
       "displayName": "Draggable Handle",
       "description": "Pointer interaction: a draggable handle driven through the interaction adapter.",
-      "path": "Samples~/V2/DraggableHandle"
+      "path": "Samples~/DraggableHandle"
     }
   ]
 }

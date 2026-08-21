@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // MaqUI v2 — xUnit tests for the Controls layer (P8 headless subset).
 
-using Maqui.V2.Components;
+using Maqui.Components;
 using UnityEngine;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class ButtonTests
     {

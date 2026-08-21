@@ -7,11 +7,11 @@
 // earlier controls would fail the last test here.
 
 using System.Linq;
-using Maqui.V2;
-using Maqui.V2.Components;
+using Maqui;
+using Maqui.Components;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class IconTests
     {

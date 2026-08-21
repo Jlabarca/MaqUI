@@ -4,11 +4,11 @@
 // Validates the keyed-map diff algorithm against TestBackend.
 
 using System.Linq;
-using Maqui.V2;
+using Maqui;
 using UnityEngine;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class ReconcilerTests
     {

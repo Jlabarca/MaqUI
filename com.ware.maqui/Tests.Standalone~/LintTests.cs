@@ -2,10 +2,10 @@
 // MaqUI v2 — xUnit tests for MaquiComponentLint. P5.4.
 
 using System.Linq;
-using Maqui.V2.Tools;
+using Maqui.Tools;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class MaquiComponentLintTests
     {
@@ -13,7 +13,7 @@ namespace Maqui.V2.Tests
         public void Check_CleanSource_ReturnsEmpty()
         {
             string src = @"
-namespace Maqui.V2.Components {
+namespace Maqui.Components {
     public static partial class MaquiComponents {
         public static bool Button(this Gui gui, string label) {
             var node = gui.Box();

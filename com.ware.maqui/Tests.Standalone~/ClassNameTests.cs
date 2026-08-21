@@ -13,11 +13,11 @@
 // this suite as a Unity-only blind draft. That boundary is exactly the one the
 // 2026-07-16 audit flagged; WL.3's WindowProbe is what covers the other side.
 
-using Maqui.V2;
+using Maqui;
 using UnityEngine;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class ClassNameTests
     {

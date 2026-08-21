@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // MaqUI v2 — TextScale.Ramp tests (V2-UI-PARITY.3.7, headless).
 
-using Maqui.V2;
+using Maqui;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class TextScaleTests
     {

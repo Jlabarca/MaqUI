@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Maqui.V2.Tools
+namespace Maqui.Tools
 {
     public enum LintSeverity : byte
     {
@@ -33,7 +33,7 @@ namespace Maqui.V2.Tools
     }
 
     /// <summary>
-    /// Lint rules for Maqui.V2 component source — mitigates BUG.1 drift back
+    /// Lint rules for Maqui component source — mitigates BUG.1 drift back
     /// to prefab/MVPa authoring. Rules:
     ///
     /// <list type="bullet">

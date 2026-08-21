@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-// Minimal UnityEngine shim — only the types Maqui.V2 Runtime sources actually
+// Minimal UnityEngine shim — only the types Maqui Runtime sources actually
 // reference. Lets `dotnet test` compile the v2 source files outside Unity.
 //
 // When Unity compiles the same sources, UnityEngine.dll is auto-referenced
 // and provides the real types; this file is NOT visible to Unity (parent
 // folder ends with `~` per Unity's package import rules).
 //
-// Keep this file in lockstep with the actual UnityEngine surface Runtime/V2/
+// Keep this file in lockstep with the actual UnityEngine surface Runtime/
 // reaches for. Today: Color32 (DrawRect/DrawText/DrawLine/DrawCircle) +
 // Texture2D (IImageLoader interface signature).
 
@@ -36,14 +36,14 @@ namespace UnityEngine
 
     /// <summary>
     /// Shim of <c>UnityEngine.Texture2D</c>. Only the type identity is needed
-    /// by <c>Maqui.V2.Components.IImageLoader.Resolve</c>; no methods are
+    /// by <c>Maqui.Components.IImageLoader.Resolve</c>; no methods are
     /// exercised headlessly (no real image loading runs outside Unity).
     /// </summary>
     public class Texture2D { }
 
     /// <summary>
     /// Shim of <c>UnityEngine.Sprite</c>. Only the type identity is needed by
-    /// <c>Maqui.V2.Components.ISpriteLoader.Resolve</c> (atlas-backed icons whose
+    /// <c>Maqui.Components.ISpriteLoader.Resolve</c> (atlas-backed icons whose
     /// sub-rect a bare Texture2D can't express); no methods run headlessly.
     /// </summary>
     public class Sprite { }

@@ -3,7 +3,7 @@
 
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class AnimationFloatTests
     {

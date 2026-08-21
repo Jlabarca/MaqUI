@@ -9,11 +9,11 @@
 // DrawText takes peeked+2 — so the slot's own id (the one OnDragStart/
 // OnDragEnd read) is always peeked+1 for this shape.
 
-using Maqui.V2;
-using Maqui.V2.Components;
+using Maqui;
+using Maqui.Components;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class HotbarDragTests
     {

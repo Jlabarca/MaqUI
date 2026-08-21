@@ -13,11 +13,11 @@
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
-using Maqui.V2;
+using Maqui;
 using UnityEngine;
 using Xunit;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     public class ApiSkeletonTests
     {
@@ -330,9 +330,9 @@ namespace Maqui.V2.Tests
         /// if any appear.
         /// </summary>
         [Fact]
-        public void V2Sources_DoNotReference_PrefabSpawningApis()
+        public void RuntimeSources_DoNotReference_PrefabSpawningApis()
         {
-            string runtimeDir = FindRuntimeV2Dir();
+            string runtimeDir = FindRuntimeDir();
             string[] forbidden = { "Resources.Load", "GameObject.Instantiate", "[AddComponentMenu" };
             // Allowlist: files that legitimately use prefab-spawning APIs as the
             // backend's adapter surface (not as component-authoring code).
@@ -348,19 +348,24 @@ namespace Maqui.V2.Tests
                     Assert.False(
                         src.Contains(needle),
                         $"BUG.1: forbidden API '{needle}' found in {Path.GetFileName(file)}. " +
-                        "v2 source files must never reach for prefab-spawning APIs (see MAQUI-V2-IMPL.md BUG.1).");
+                        "Maqui runtime sources must never reach for prefab-spawning APIs (see MAQUI-V2-IMPL.md BUG.1).");
                 }
             }
         }
 
-        private static string FindRuntimeV2Dir([CallerFilePath] string thisFile = null)
+        private static string FindRuntimeDir([CallerFilePath] string thisFile = null)
         {
             // This file is at  .../com.ware.maqui/Tests.Standalone~/ApiSkeletonTests.cs
-            // Runtime/V2 is at  .../com.ware.maqui/Runtime/V2
+            // Runtime    is at  .../com.ware.maqui/Runtime
+            //
+            // MAQUI-V1-SUNSET MVS.6: this used to point at Runtime/V2. The V2 folder was
+            // collapsed into Runtime when V1 was deleted, and this hardcoded path is exactly
+            // the silent-breakage class the rename was expected to produce -- the suite caught
+            // it, which is why the path lives in one helper rather than inline per test.
             var thisDir = new FileInfo(thisFile).Directory;            // Tests.Standalone~
             var pkgDir  = thisDir.Parent;                              // com.ware.maqui
-            string runtime = Path.Combine(pkgDir.FullName, "Runtime", "V2");
-            Assert.True(Directory.Exists(runtime), $"Could not locate Runtime/V2 dir from {thisFile}");
+            string runtime = Path.Combine(pkgDir.FullName, "Runtime");
+            Assert.True(Directory.Exists(runtime), $"Could not locate Runtime dir from {thisFile}");
             return runtime;
         }
     }

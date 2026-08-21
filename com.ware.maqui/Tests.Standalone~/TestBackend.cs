@@ -3,9 +3,9 @@
 // as a typed event sequence; standalone xUnit tests assert on the sequence.
 
 using System.Collections.Generic;
-using Maqui.V2;
+using Maqui;
 
-namespace Maqui.V2.Tests
+namespace Maqui.Tests
 {
     /// <summary>
     /// Discriminates entries in <see cref="TestBackend.Events"/>.
