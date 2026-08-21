@@ -2,7 +2,6 @@
 // This code can only be used under the standard Unity Asset Store EULA,
 // a copy of which is available at https://unity.com/legal/as-terms.
 
-using R3;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,52 +12,12 @@ namespace Ricimi
 	[AddComponentMenu("UI/Effects/Gradient")]
 	public class Gradient : BaseMeshEffect
 	{
-        [Header("Maqui Theme Integration")]
-        public Maqui.Core.Logic.ThemeColorType Color1Type = Maqui.Core.Logic.ThemeColorType.None;
-        public Maqui.Core.Logic.ThemeColorType Color2Type = Maqui.Core.Logic.ThemeColorType.None;
-
 		public Color Color1 = Color.white;
 		public Color Color2 = Color.white;
 
-        private R3.CompositeDisposable _themeDisposables = new();
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
-            var provider = Maqui.Core.MaquiServices.Get<Maqui.Core.Bridge.IThemeProvider>();
-            if (provider != null)
-            {
-                provider.CurrentTheme
-                    .Where(t => t != null)
-                    .Subscribe(OnThemeChanged)
-                    .AddTo(_themeDisposables);
-            }
-        }
-
-        protected override void OnDisable()
-        {
-            base.OnDisable();
-            _themeDisposables.Dispose();
-            _themeDisposables = new();
-        }
-
-        private void OnThemeChanged(Maqui.Core.Logic.ThemeData theme)
-        {
-            bool changed = false;
-            if (Color1Type != Maqui.Core.Logic.ThemeColorType.None)
-            {
-                Color1 = theme.GetColor(Color1Type);
-                changed = true;
-            }
-            if (Color2Type != Maqui.Core.Logic.ThemeColorType.None)
-            {
-                Color2 = theme.GetColor(Color2Type);
-                changed = true;
-            }
-
-            if (changed && graphic != null)
-                graphic.SetVerticesDirty();
-        }
+		// MAQUI-V1-SUNSET MVS.5: the "Maqui Theme Integration" block that used to live here
+		// (ThemeColorType fields + an IThemeProvider subscription via MaquiServices) was V1-only.
+		// V1's theme system is deleted, so this is back to the stock Ricimi component.
 
 		[Range(-180f, 180f)] public float Angle = -90.0f;
 

@@ -2,8 +2,6 @@
     "name": "Maqui.Tests.Editor",
     "rootNamespace": "Maqui.Tests.Editor",
     "references": [
-        "Maqui.Runtime",
-        "Maqui.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -2,7 +2,7 @@
   "name": "com.ware.maqui",
   "version": "0.1.0",
   "displayName": "Maqui",
-  "description": "A reactive MVVM UI framework for Unity. R3-powered ViewModels, VitalRouter command routing, and layer-based window management.",
+  "description": "An immediate-mode retained-reconciler UI framework for Unity. Declarative per-frame widget code over a pooled UI Toolkit backend, with window chrome, drag/drop, responsiveness primitives and a headless-testable pure layer.",
   "unity": "2022.3",
   "unityRelease": "0f1",
   "documentationUrl": "",
@@ -16,11 +16,11 @@
   },
   "keywords": [
     "ui",
-    "mvvm",
-    "reactive",
     "framework",
-    "r3",
-    "vitalrouter"
+    "immediate-mode",
+    "retained",
+    "ui-toolkit",
+    "gui"
   ],
   "author": {
     "name": "ware",
@@ -29,24 +29,14 @@
   },
   "samples": [
     {
-      "displayName": "Welcome",
-      "description": "A minimal Hello World scene demonstrating Maqui routing and MVVM basics.",
-      "path": "Samples~/Welcome"
+      "displayName": "Hello World",
+      "description": "A minimal scene showing the Gui loop, a window and a few widgets.",
+      "path": "Samples~/V2/HelloWorld"
     },
     {
-      "displayName": "Grand Tour",
-      "description": "A multi-screen showcase demonstrating navigation, theming, and reactive bindings.",
-      "path": "Samples~/GrandTour"
-    },
-    {
-      "displayName": "Shark Suite",
-      "description": "An inventory/item list demo showing reactive lists and detail views.",
-      "path": "Samples~/SharkSuite"
-    },
-    {
-      "displayName": "Modernization",
-      "description": "A before/after demo showing how to migrate existing OneUI views to the Maqui MVVM pattern.",
-      "path": "Samples~/Modernization"
+      "displayName": "Draggable Handle",
+      "description": "Pointer interaction: a draggable handle driven through the interaction adapter.",
+      "path": "Samples~/V2/DraggableHandle"
     }
   ]
 }
