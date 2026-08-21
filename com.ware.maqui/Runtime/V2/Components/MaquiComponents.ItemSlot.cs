@@ -103,6 +103,28 @@ namespace Maqui.V2.Components
         }
 
         /// <summary>
+        /// <see cref="Grid"/> whose column count is DERIVED from the available width
+        /// rather than fixed by the caller — the reflow half of responsiveness
+        /// (V2-UI-POLISH P2). Returns the column count it used, so a caller can report
+        /// or assert on it.
+        ///
+        /// <para><paramref name="cellSize"/> must include per-cell margins; see
+        /// <see cref="FlowLayout.Columns"/> for why the pure layer cannot infer them.
+        /// <paramref name="fallbackColumns"/> is used on the first frame, before layout
+        /// has produced a width.</para>
+        /// </summary>
+        public static int FlowGrid(this Gui gui, float availableWidth, float cellSize,
+            int itemCount, System.Action<int> renderCell, float gap = 0f,
+            int minColumns = 1, int maxColumns = 0, int fallbackColumns = 1,
+            string rowClassName = null)
+        {
+            int columns = FlowLayout.Columns(availableWidth, cellSize, gap,
+                minColumns, maxColumns, fallbackColumns);
+            gui.Grid(columns, itemCount, renderCell, rowClassName);
+            return columns;
+        }
+
+        /// <summary>
         /// A hover-revealed info panel. Renders <paramref name="content"/> inside a
         /// styled container only when <paramref name="show"/> is true; a no-op
         /// otherwise. The caller places it in the layout (typically below a Grid)
