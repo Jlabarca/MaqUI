@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "methodology": "v0.1-57-g3874cc4",
-  "source": "waremoto/ghostdev@3874cc4",
+  "methodology": "v0.1-159-g7864ea6",
+  "source": "waremoto/ghostdev@7864ea6",
   "adopted": "2026-06-09",
-  "updated": "2026-06-12",
+  "updated": "2026-08-18",
   "components": {
-    "rules": 16,
-    "skills": 12,
-    "hooks": 3,
+    "rules": 17,
+    "skills": 14,
+    "hooks": 6,
     "statusline": true
   },
   "surface": [
