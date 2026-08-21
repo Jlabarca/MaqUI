@@ -96,3 +96,9 @@ cmake-build-*/
 out/
 # MaqUI v2 standalone xUnit project — hand-written, must be tracked
 !com.ware.maqui/Tests.Standalone~/*.csproj
+
+# Rider/ReSharper language-service cache
+*.lscache
+
+# Claude Code hook logs (per-machine)
+**/.claude/logs/
