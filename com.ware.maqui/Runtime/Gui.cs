@@ -324,7 +324,8 @@ namespace Maqui
         /// <summary>P8.6: editable text field. Backend creates a UI Toolkit
         /// TextField; value-changed callback routes through
         /// <see cref="TextInputs"/> keyed by ScopePath + <paramref name="key"/>.</summary>
-        public Node TextInputField(string key, string initialValue, float height = 28f)
+        public Node TextInputField(string key, string initialValue,
+            float height = Maqui.Components.MaquiTheme.InputHeight)
         {
             int id = NewNodeId();
             string keyPayload = string.IsNullOrEmpty(key)

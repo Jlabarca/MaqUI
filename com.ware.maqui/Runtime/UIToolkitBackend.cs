@@ -374,6 +374,7 @@ namespace Maqui
             if (!_textFieldKeys.Contains(tf))
             {
                 _textFieldKeys.Add(tf);
+                StyleTextField(tf);
                 if (_gui != null && storeKey != null && !_gui.TextInputs.Has(storeKey))
                 {
                     _gui.TextInputs.Set(storeKey, initial);
@@ -393,6 +394,77 @@ namespace Maqui
                 var cur = _gui.TextInputs.Get(storeKey, initial);
                 if (tf.value != cur) tf.SetValueWithoutNotify(cur);
             }
+        }
+
+
+        /// <summary>
+        /// Paint a stock <c>TextField</c> as a Maqui input.
+        ///
+        /// <para>WHY THIS EXISTS. Untouched, UI Toolkit's TextField is a white box with a
+        /// 12px font, its own margins, and ~1px of usable vertical slack once a caller pins
+        /// a fixed height on the root — which is what <see cref="ApplySizeIfSet"/> does for
+        /// every Maqui input. The visible result is a tall pale rectangle with small text
+        /// clipped along its bottom edge: mostly blank space, and the one glyph row that
+        /// matters cut in half.</para>
+        ///
+        /// <para>The fix has to reach the INNER element. A BaseField's background, border
+        /// and padding are painted by its <c>unity-text-input</c> child, not by the root, so
+        /// styling <c>tf.style</c> alone changes nothing you can see. Font size and text
+        /// color DO inherit, so those are set once on the root.</para>
+        ///
+        /// <para>Called once per TextField, on first bind. TextFields are never pooled
+        /// (see <see cref="Recycle"/> — they drop on the floor), so there is no reuse path
+        /// that could strip this chrome back off.</para>
+        /// </summary>
+        private static void StyleTextField(TextField tf)
+        {
+            // Inherited by the inner text element; set here so both the input and any
+            // future decoration on the root read at the same size.
+            tf.style.fontSize = Maqui.Components.MaquiTheme.InputFontSize;
+            tf.style.color = new StyleColor((Color)Maqui.Components.MaquiTheme.InputText);
+            // A BaseField ships with vertical margin. Against the fixed height the size
+            // op writes, that margin comes straight out of the text's own box.
+            tf.style.marginTop = 0f;
+            tf.style.marginBottom = 0f;
+            tf.style.marginLeft = 0f;
+            tf.style.marginRight = 0f;
+
+            var input = tf.Q("unity-text-input") ?? tf;
+            input.style.flexGrow = 1f;
+            input.style.marginTop = 0f;
+            input.style.marginBottom = 0f;
+            input.style.marginLeft = 0f;
+            input.style.marginRight = 0f;
+            input.style.paddingLeft = Maqui.Components.MaquiTheme.InputPaddingHorizontal;
+            input.style.paddingRight = Maqui.Components.MaquiTheme.InputPaddingHorizontal;
+            input.style.paddingTop = Maqui.Components.MaquiTheme.InputPaddingVertical;
+            input.style.paddingBottom = Maqui.Components.MaquiTheme.InputPaddingVertical;
+            input.style.backgroundColor = new StyleColor(Maqui.Components.MaquiTheme.InputBackground);
+            input.style.color = new StyleColor((Color)Maqui.Components.MaquiTheme.InputText);
+            input.style.fontSize = Maqui.Components.MaquiTheme.InputFontSize;
+            // Middle-left rather than the default upper-left: with the row height fixed,
+            // top-aligned text sits against the border and clips.
+            input.style.unityTextAlign = TextAnchor.MiddleLeft;
+            input.style.borderTopWidth = 1f;
+            input.style.borderBottomWidth = 1f;
+            input.style.borderLeftWidth = 1f;
+            input.style.borderRightWidth = 1f;
+            SetBorderColor(input, Maqui.Components.MaquiTheme.InputBorder);
+            ApplyCornerRadius(input, Maqui.Components.MaquiTheme.CornerRadius);
+
+            // Focus is otherwise invisible once the stock blue outline is overpainted.
+            tf.RegisterCallback<FocusInEvent>(_ =>
+                SetBorderColor(input, Maqui.Components.MaquiTheme.InputBorderFocus));
+            tf.RegisterCallback<FocusOutEvent>(_ =>
+                SetBorderColor(input, Maqui.Components.MaquiTheme.InputBorder));
+        }
+
+        private static void SetBorderColor(VisualElement element, Color color)
+        {
+            element.style.borderTopColor = color;
+            element.style.borderBottomColor = color;
+            element.style.borderLeftColor = color;
+            element.style.borderRightColor = color;
         }
 
         private readonly HashSet<TextField> _textFieldKeys = new();

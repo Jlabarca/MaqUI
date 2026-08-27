@@ -18,13 +18,14 @@ namespace Maqui.Components
         /// <paramref name="text"/> echoed back; subsequent calls reflect
         /// keystrokes the user has typed.
         /// </summary>
-        public static string TextInput(this Gui gui, string key, string text)
+        public static string TextInput(this Gui gui, string key, string text,
+            float height = MaquiTheme.InputHeight)
         {
             // Records a TextInputField FrameOp; UIToolkitBackend swaps in a
             // UnityEngine.UIElements.TextField + routes value changes to
             // gui.TextInputs keyed by ScopePath+key. We surface the latest
             // typed-text value back to the caller via TextInputs.Get.
-            gui.TextInputField(key, text);
+            gui.TextInputField(key, text, height);
             string storeKey = (gui.CurrentScopePath ?? "/") + "/" + (key ?? "text");
             return gui.TextInputs.Get(storeKey, text ?? string.Empty);
         }

@@ -40,6 +40,25 @@ namespace Maqui.Components
         public static readonly Color32 ToggleOffHover = new Color32(72, 75, 90, 255);
         public static readonly Color32 ToggleKnob = new Color32(245, 245, 250, 255);
 
+        // ---- Text input chrome (MaquiComponents.TextInput / Gui.TextInputField).
+        // A stock UI Toolkit TextField paints white-on-black with a 12px font and
+        // carries its own margins, so a caller-set fixed height clipped the glyphs
+        // and left the box reading as mostly empty white. These tokens are what the
+        // backend paints instead: an inset well matching the panel, a legible font,
+        // and only as much padding as the text actually needs.
+        public static readonly Color32 InputBackground = new Color32(28, 29, 36, 255);
+        public static readonly Color32 InputText = new Color32(232, 234, 240, 255);
+        public static readonly Color32 InputBorder = new Color32(70, 72, 86, 255);
+        public static readonly Color32 InputBorderFocus = new Color32(89, 166, 255, 255);
+
+        /// <summary>Default height of a text input. Sized off
+        /// <see cref="InputFontSize"/> + <see cref="InputPaddingVertical"/> — a
+        /// taller box only adds the blank space this replaced.</summary>
+        public const float InputHeight = 30f;
+        public const float InputFontSize = 15f;
+        public const float InputPaddingHorizontal = 8f;
+        public const float InputPaddingVertical = 2f;
+
         public const float CornerRadius = 5f;
         public const float PanelCornerRadius = 8f;
 
