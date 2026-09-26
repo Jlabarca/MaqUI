@@ -80,6 +80,13 @@ namespace Maqui.Tests.Runtime
             var outer = gui.EnterDataScope("outer");
             gui.EnterDataScope("inner"); // not disposed via using — deliberately leaked for this assertion
             Assert.Throws<System.InvalidOperationException>(() => outer.Dispose());
+            // outer.Dispose() marks itself disposed even though it threw, and the
+            // leaked "inner" handle was never captured, so unwind the stack
+            // directly rather than through the now-inert handles — otherwise
+            // EndFrame's own unclosed-scope guard fails this test for an
+            // unrelated reason.
+            gui.ExitDataScope(); // inner
+            gui.ExitDataScope(); // outer
             gui.EndFrame();
         }
 
