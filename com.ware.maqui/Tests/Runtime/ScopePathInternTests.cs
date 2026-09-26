@@ -6,7 +6,7 @@
 using System.Reflection;
 using NUnit.Framework;
 
-namespace Maqui.Tests.Editor
+namespace Maqui.Tests.Runtime
 {
     public class ScopePathInternTests
     {
