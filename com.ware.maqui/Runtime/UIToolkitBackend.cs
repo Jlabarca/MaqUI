@@ -41,6 +41,16 @@ namespace Maqui
         private const int MaxPoolSizePerKind = 64;
         private int _nextHandle = 1; // 0 reserved for Root.
 
+        /// <summary>
+        /// FRAME-BUDGET.2.5: last *requested* <see cref="FrameOp"/> applied to each element,
+        /// so <see cref="ApplyProps"/> can skip unchanged style writes. Compared against the
+        /// requested op, never against <c>element.resolvedStyle</c> (GUARD.4 — resolvedStyle
+        /// lags a frame behind a just-applied inline write and would misreport "unchanged").
+        /// Cleared on rent (<see cref="CreateElement"/>'s pool pop) and on <see cref="Recycle"/>
+        /// so a reused element always re-applies its first op in full.
+        /// </summary>
+        private readonly Dictionary<VisualElement, FrameOp> _lastProps = new();
+
         private readonly Gui _gui;
         private readonly Maqui.Components.IImageLoader _imageLoader;
         private readonly Maqui.Components.ISpriteLoader _spriteLoader;
@@ -76,7 +86,14 @@ namespace Maqui
         public int CreateElement(in FrameOp op)
         {
             VisualElement element = TryPop(op.Kind);
-            if (element != null) ResetPooledStyles(element);
+            if (element != null)
+            {
+                ResetPooledStyles(element);
+                // FRAME-BUDGET.2.5: a rented element's actual style was just reset to null,
+                // so any stale "last requested" entry from its PREVIOUS tenant must not be
+                // trusted for the diff below.
+                _lastProps.Remove(element);
+            }
             else element = Build(op.Kind);
             ApplyProps(element, in op);
 
@@ -127,6 +144,10 @@ namespace Maqui
             if (handle == Root) return; // never recycle root
             if (!_elements.TryGetValue(handle, out var element)) return;
             _elements.Remove(handle);
+            // FRAME-BUDGET.2.5: whether this element is about to be pooled (Box bucket) or
+            // dropped on the floor (Label/TextField/ScrollView below), its "last requested"
+            // entry must not survive to mislead a future tenant's diff.
+            _lastProps.Remove(element);
             element.RemoveFromHierarchy();
             // Drop our class bookkeeping AND the class itself: a pooled element must
             // come back clean, and leaving the entry would grow the map forever with
@@ -241,6 +262,18 @@ namespace Maqui
 
         private void ApplyProps(VisualElement element, in FrameOp op)
         {
+            // FRAME-BUDGET.2.5: skip the whole write path (including the ApplyClassName/
+            // picking-mode guards below, which are already cheap but still branch) when
+            // this op is identical, field for field, to the last one requested for this
+            // element. Lever: Maqui.FrameBudgetFlags.PropDiff (ORO's /fb maquidiff).
+            if (Maqui.FrameBudgetFlags.PropDiff
+                && _lastProps.TryGetValue(element, out var lastOp)
+                && lastOp.PropsEqual(in op))
+            {
+                return;
+            }
+            _lastProps[element] = op;
+
             ApplyClassName(element, op.ClassName);
 
             // Cheap guard rather than an unconditional write: this runs for every

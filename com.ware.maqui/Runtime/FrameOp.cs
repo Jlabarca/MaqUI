@@ -185,5 +185,30 @@ namespace Maqui
             string path = ScopePath ?? "/";
             return $"[{Kind} #{NodeId} @{path}]";
         }
+
+        /// <summary>
+        /// FRAME-BUDGET.2.5: true when every field <see cref="UIToolkitBackend.ApplyProps"/>
+        /// actually reads is unchanged from <paramref name="other"/>. Deliberately excludes
+        /// <see cref="NodeId"/> and <see cref="ScopePath"/> — neither feeds a style write, so
+        /// comparing them would only produce false "changed" results and defeat the diff.
+        /// A manual field compare rather than the struct's default (reflection-based, boxing)
+        /// <c>Equals</c>, since this runs on the hot per-op path.
+        /// </summary>
+        public bool PropsEqual(in FrameOp other)
+        {
+            return Kind == other.Kind
+                && ClassName == other.ClassName
+                && Color.Equals(other.Color)
+                && FloatA == other.FloatA
+                && FloatB == other.FloatB
+                && FloatC == other.FloatC
+                && FloatD == other.FloatD
+                && AlignItems == other.AlignItems
+                && MaxHeight == other.MaxHeight
+                && WidthMin == other.WidthMin
+                && WidthMax == other.WidthMax
+                && HeightMin == other.HeightMin
+                && Text == other.Text;
+        }
     }
 }
