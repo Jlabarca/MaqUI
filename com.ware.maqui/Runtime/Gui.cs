@@ -449,6 +449,14 @@ namespace Maqui
             _animations.TickAll(dt);
         }
 
+        /// <summary>
+        /// FRAME-BUDGET.2.6 — true when this Gui has at least one animation still in flight
+        /// (<see cref="AnimationStore.HasActive"/>). A caller doing an opt-in dirty-rebuild skip
+        /// must treat this as a forced-dirty source: an unsettled tween or scroll inertia needs a
+        /// rebuild every frame regardless of any declared data version.
+        /// </summary>
+        public bool HasActiveAnimations => _animations.HasActive;
+
         // --- Data scope (1.6) ---
 
         /// <summary>

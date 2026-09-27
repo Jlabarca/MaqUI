@@ -60,6 +60,23 @@ namespace Maqui
         public int Count => _values.Count;
 
         /// <summary>
+        /// FRAME-BUDGET.2.6 — true when at least one tracked animation has not settled
+        /// (<see cref="AnimationFloat.IsSettled"/> false). A window with active tweens or scroll
+        /// inertia must not be skipped by a dirty-rebuild optimisation, so this is one of the
+        /// forced-dirty sources a caller reads before deciding to bail on a frame's rebuild.
+        /// O(n) over tracked animations — called at most once per window per frame.
+        /// </summary>
+        public bool HasActive
+        {
+            get
+            {
+                foreach (var kv in _values)
+                    if (!kv.Value.IsSettled()) return true;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Advance every tracked animation by <paramref name="dt"/> seconds.
         /// Called by <see cref="Gui.TickAnimations"/> once per frame.
         /// </summary>
