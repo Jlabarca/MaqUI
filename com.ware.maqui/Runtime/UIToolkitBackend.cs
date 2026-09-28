@@ -265,9 +265,8 @@ namespace Maqui
             // FRAME-BUDGET.2.5: skip the whole write path (including the ApplyClassName/
             // picking-mode guards below, which are already cheap but still branch) when
             // this op is identical, field for field, to the last one requested for this
-            // element. Lever: Maqui.FrameBudgetFlags.PropDiff (ORO's /fb maquidiff).
-            if (Maqui.FrameBudgetFlags.PropDiff
-                && _lastProps.TryGetValue(element, out var lastOp)
+            // element.
+            if (_lastProps.TryGetValue(element, out var lastOp)
                 && lastOp.PropsEqual(in op))
             {
                 return;

@@ -3,10 +3,10 @@
 //
 // FRAME-BUDGET.2.5: UIToolkitBackend.ApplyProps skips its style writes when the
 // incoming FrameOp is field-for-field identical to the last one applied to that
-// element (Maqui.FrameBudgetFlags.PropDiff, default on). These tests drive the
-// backend directly (CreateElement/UpdateElement/Recycle), bypassing Gui/the
-// reconciler, so the op sequence per element is exact and reproducible — no
-// dependence on how the reconciler happens to key nodes across frames.
+// element. These tests drive the backend directly (CreateElement/UpdateElement/
+// Recycle), bypassing Gui/the reconciler, so the op sequence per element is
+// exact and reproducible — no dependence on how the reconciler happens to key
+// nodes across frames.
 
 using NUnit.Framework;
 using UnityEngine;
@@ -18,30 +18,23 @@ namespace Maqui.Tests.Runtime
     {
         private VisualElement _root;
         private UIToolkitBackend _backend;
-        private bool _savedPropDiff;
 
         [SetUp]
         public void SetUp()
         {
             _root = new VisualElement { name = "test-root" };
             _backend = new UIToolkitBackend(_root);
-            _savedPropDiff = FrameBudgetFlags.PropDiff;
         }
 
         [TearDown]
         public void TearDown()
         {
-            // The flag is a package-wide static; never leak a test's override into the
-            // next test (or into a real play-mode session sharing the same domain).
-            FrameBudgetFlags.PropDiff = _savedPropDiff;
             _root?.RemoveFromHierarchy();
         }
 
         [Test]
-        public void IdenticalRepeatedOp_SkipsWrite_WhenPropDiffOn()
+        public void IdenticalRepeatedOp_SkipsWrite()
         {
-            FrameBudgetFlags.PropDiff = true;
-
             var op = new FrameOp(FrameOpKind.DrawText, nodeId: 1, scopePath: "/a",
                 a: 20f, color: new Color32(255, 255, 255, 255), text: "Hello");
             int handle = _backend.CreateElement(in op);
@@ -60,29 +53,8 @@ namespace Maqui.Tests.Runtime
         }
 
         [Test]
-        public void IdenticalRepeatedOp_StillWrites_WhenPropDiffOff()
-        {
-            FrameBudgetFlags.PropDiff = false;
-
-            var op = new FrameOp(FrameOpKind.DrawText, nodeId: 1, scopePath: "/a",
-                a: 20f, color: new Color32(255, 255, 255, 255), text: "Hello");
-            int handle = _backend.CreateElement(in op);
-            _backend.SetParent(handle, _backend.Root, 0);
-
-            var label = (Label)_root[0];
-            label.style.color = new StyleColor(Color.green);
-
-            _backend.UpdateElement(handle, in op); // field-for-field identical op
-
-            Assert.AreEqual(Color.white, (Color)label.style.color.value,
-                "with the lever off every op re-runs the full write path regardless of diff");
-        }
-
-        [Test]
         public void ChangedProp_WritesTheNewValue()
         {
-            FrameBudgetFlags.PropDiff = true;
-
             var opWhite = new FrameOp(FrameOpKind.DrawText, nodeId: 1, scopePath: "/a",
                 a: 20f, color: new Color32(255, 255, 255, 255), text: "Hello");
             int handle = _backend.CreateElement(in opWhite);
@@ -100,8 +72,6 @@ namespace Maqui.Tests.Runtime
         [Test]
         public void RerentedElement_StartsClean_NotStaleFromPreviousTenant()
         {
-            FrameBudgetFlags.PropDiff = true;
-
             // Box ops pool back into the FrameOpKind.Box bucket on Recycle (unlike
             // Label/TextField/ScrollView, which drop on the floor).
             var opRed = new FrameOp(FrameOpKind.Box, nodeId: 1, scopePath: "/a",
