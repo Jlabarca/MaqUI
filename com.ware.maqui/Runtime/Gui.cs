@@ -25,6 +25,45 @@ namespace Maqui
         private int _nextNodeId;
         private bool _inFrame;
 
+        // --- FRAME-BUDGET.2.1: interned scope paths ---
+        //
+        // CurrentScopePath used to rebuild "/a/b/c" via string.Join + a reversed
+        // stack walk on every single frame op (Row/Column/Box/Draw*/etc all call
+        // it). That is one allocation-and-walk per op, every frame, for a value
+        // that is IDENTICAL across frames as long as the scope stack shape is
+        // identical — which it almost always is, since scopes are pushed by
+        // stable UI structure (a window, a panel, a per-item scope keyed by a
+        // stable id), not per-frame data.
+        //
+        // Fix: compute each scope's full path ONCE per (parent path, key) pair
+        // and cache it in _pathIntern. _scopePathStack mirrors _scopeStack but
+        // holds the already-computed full path at each depth, so
+        // CurrentScopePath becomes a stack peek — no allocation, no walk.
+        //
+        // The table is bounded: an entry not touched (pushed) for
+        // ScopePathInternEvictAfterFrames frames is evicted on the next sweep,
+        // so per-item scopes (e.g. one scope per inventory slot id) cannot grow
+        // this table without bound as items come and go.
+        private const int ScopePathInternEvictAfterFrames = 600;
+        private const int ScopePathInternSweepEveryFrames = 128;
+
+        private readonly Dictionary<(string parentPath, string key), InternedScopePath> _pathIntern =
+            new Dictionary<(string, string), InternedScopePath>(capacity: 64);
+        private readonly Stack<string> _scopePathStack = new Stack<string>(capacity: 16);
+        private int _frameCounter;
+
+        private readonly struct InternedScopePath
+        {
+            public readonly string Path;
+            public readonly int LastTouchedFrame;
+
+            public InternedScopePath(string path, int lastTouchedFrame)
+            {
+                Path = path;
+                LastTouchedFrame = lastTouchedFrame;
+            }
+        }
+
         // --- P4: animation + interaction state (lives across frames) ---
 
         private readonly AnimationStore _animations = new AnimationStore();
@@ -84,8 +123,12 @@ namespace Maqui
             if (_inFrame) throw new InvalidOperationException("Maqui.Gui: BeginFrame called twice without EndFrame.");
             _frameBuffer.Clear();
             _scopeStack.Clear();
+            _scopePathStack.Clear();
             _nextNodeId = 0;
             _inFrame = true;
+            _frameCounter++;
+            if (_frameCounter % ScopePathInternSweepEveryFrames == 0)
+                SweepScopePathIntern();
             // NOTE: does NOT reset _interactions here. Unity runs Update()
             // (where UIToolkitInteractionAdapter dispatches pointer events)
             // before LateUpdate() (where BeginFrame/BuildUI/EndFrame run) —
@@ -138,7 +181,7 @@ namespace Maqui
         internal FrameBuffer Buffer => _frameBuffer;
 
         public string CurrentScopePath =>
-            _scopeStack.Count == 0 ? "/" : "/" + string.Join("/", ReverseStack(_scopeStack));
+            _scopePathStack.Count == 0 ? "/" : _scopePathStack.Peek();
 
         // --- Layout primitives (1.3) ---
 
@@ -406,6 +449,14 @@ namespace Maqui
             _animations.TickAll(dt);
         }
 
+        /// <summary>
+        /// FRAME-BUDGET.2.6 — true when this Gui has at least one animation still in flight
+        /// (<see cref="AnimationStore.HasActive"/>). A caller doing an opt-in dirty-rebuild skip
+        /// must treat this as a forced-dirty source: an unsettled tween or scroll inertia needs a
+        /// rebuild every frame regardless of any declared data version.
+        /// </summary>
+        public bool HasActiveAnimations => _animations.HasActive;
+
         // --- Data scope (1.6) ---
 
         /// <summary>
@@ -417,8 +468,13 @@ namespace Maqui
         {
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Maqui.Gui: data scope key must be non-empty.", nameof(key));
+
+            string parentPath = _scopePathStack.Count == 0 ? "/" : _scopePathStack.Peek();
+            string path = InternScopePath(parentPath, key);
+
             _scopeStack.Push(key);
-            _frameBuffer.Record(new FrameOp(FrameOpKind.ScopeEnter, 0, CurrentScopePath, text: key));
+            _scopePathStack.Push(path);
+            _frameBuffer.Record(new FrameOp(FrameOpKind.ScopeEnter, 0, path, text: key));
             return new ScopeHandle(this, _scopeStack.Count);
         }
 
@@ -428,7 +484,56 @@ namespace Maqui
             if (_scopeStack.Count == 0)
                 throw new InvalidOperationException("Maqui.Gui: ExitDataScope with no scope on stack.");
             string popped = _scopeStack.Pop();
+            _scopePathStack.Pop();
             _frameBuffer.Record(new FrameOp(FrameOpKind.ScopeExit, 0, CurrentScopePath, text: popped));
+        }
+
+        /// <summary>
+        /// FRAME-BUDGET.2.1: look up (or compute and cache) the full path for
+        /// <paramref name="key"/> under <paramref name="parentPath"/>. String
+        /// concatenation ("/a" + "/" + "b" -> "/a/b") happens at most once per
+        /// distinct (parentPath, key) pair across the interned table's
+        /// lifetime; every repeat push (the common case — scopes are pushed by
+        /// stable UI structure, not per-frame data) is a dictionary hit.
+        /// </summary>
+        private string InternScopePath(string parentPath, string key)
+        {
+            var tableKey = (parentPath, key);
+            if (_pathIntern.TryGetValue(tableKey, out InternedScopePath entry))
+            {
+                if (entry.LastTouchedFrame != _frameCounter)
+                    _pathIntern[tableKey] = new InternedScopePath(entry.Path, _frameCounter);
+                return entry.Path;
+            }
+
+            string path = parentPath == "/" ? "/" + key : parentPath + "/" + key;
+            _pathIntern[tableKey] = new InternedScopePath(path, _frameCounter);
+            return path;
+        }
+
+        /// <summary>
+        /// FRAME-BUDGET.2.1: evict intern entries not touched in the last
+        /// <see cref="ScopePathInternEvictAfterFrames"/> frames, so per-item
+        /// scopes (e.g. one scope per inventory slot id) cannot grow the table
+        /// without bound as items come and go. Runs every
+        /// <see cref="ScopePathInternSweepEveryFrames"/> frames from
+        /// <see cref="BeginFrame"/>, never inside the per-op hot path.
+        /// </summary>
+        private void SweepScopePathIntern()
+        {
+            if (_pathIntern.Count == 0) return;
+
+            List<(string, string)> stale = null;
+            foreach (var kvp in _pathIntern)
+            {
+                if (_frameCounter - kvp.Value.LastTouchedFrame < ScopePathInternEvictAfterFrames)
+                    continue;
+                (stale ??= new List<(string, string)>()).Add(kvp.Key);
+            }
+
+            if (stale == null) return;
+            for (int i = 0; i < stale.Count; i++)
+                _pathIntern.Remove(stale[i]);
         }
 
         private sealed class ScopeHandle : IDisposable
@@ -480,12 +585,5 @@ namespace Maqui
         public int PeekNextNodeId() => _nextNodeId + 1;
 
         private int NewNodeId() => ++_nextNodeId;
-
-        private static IEnumerable<string> ReverseStack(Stack<string> stack)
-        {
-            // Stack iterates top-to-bottom; we want root-to-leaf for the path.
-            var arr = stack.ToArray(); // top..bottom
-            for (int i = arr.Length - 1; i >= 0; i--) yield return arr[i];
-        }
     }
 }
