@@ -475,7 +475,7 @@ namespace Maqui
             _scopeStack.Push(key);
             _scopePathStack.Push(path);
             _frameBuffer.Record(new FrameOp(FrameOpKind.ScopeEnter, 0, path, text: key));
-            return new ScopeHandle(this, _scopeStack.Count);
+            return RentScopeHandle(_scopeStack.Count);
         }
 
         /// <summary>Manual exit. Prefer the <c>using</c>-pattern via the IDisposable returned by EnterDataScope.</summary>
@@ -536,11 +536,25 @@ namespace Maqui
                 _pathIntern.Remove(stale[i]);
         }
 
+        // ZERO-ALLOC: EnterDataScope used to `new ScopeHandle` on every call (a using-block per row per rebuild).
+        // Scopes are strictly nested (Dispose enforces the depth), so one handle per depth is enough: reuse it.
+        private readonly System.Collections.Generic.List<ScopeHandle> _scopeHandles = new System.Collections.Generic.List<ScopeHandle>();
+
+        private ScopeHandle RentScopeHandle(int depth)
+        {
+            while (_scopeHandles.Count < depth) _scopeHandles.Add(new ScopeHandle(this, _scopeHandles.Count + 1));
+            var h = _scopeHandles[depth - 1];
+            h.Rearm();
+            return h;
+        }
+
         private sealed class ScopeHandle : IDisposable
         {
             private readonly Gui _gui;
             private readonly int _expectedDepth;
             private bool _disposed;
+
+            public void Rearm() { _disposed = false; }
 
             public ScopeHandle(Gui gui, int expectedDepth)
             {
