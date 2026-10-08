@@ -51,5 +51,20 @@ namespace Maqui.Tests.Runtime
             store.Animate("moving", 50f);
             Assert.IsTrue(store.HasActive);
         }
+
+        [Test]
+        public void TickAll_advances_every_tracked_value_across_repeated_frames()
+        {
+            // TickAll snapshots keys into a buffer it reuses between frames; this pins that the
+            // reuse still visits every value, including ones added after the first tick.
+            var store = new AnimationStore();
+            for (var k = 0; k < 8; k++) { store.Animate("k" + k, 0f); store.Animate("k" + k, 100f); }
+            store.TickAll(1f / 60f);
+            store.Animate("late", 0f); store.Animate("late", 100f);
+            for (var i = 0; i < 10; i++) store.TickAll(1f / 60f);
+            for (var k = 0; k < 8; k++) Assert.Greater(store.Get("k" + k).Current, 0f);
+            Assert.Greater(store.Get("late").Current, 0f);
+        }
     }
+
 }

@@ -17,6 +17,8 @@ namespace Maqui
     public sealed class AnimationStore
     {
         private readonly Dictionary<string, AnimationFloat> _values = new(capacity: 32);
+        // Reused by TickAll so advancing animations allocates nothing per frame.
+        private readonly List<string> _tickKeys = new(capacity: 32);
 
         /// <summary>
         /// Get current value for <paramref name="key"/> animating toward
@@ -83,17 +85,19 @@ namespace Maqui
         public void TickAll(float dt)
         {
             if (dt <= 0f) return;
+            if (_values.Count == 0) return;
             // Snapshot keys to avoid dict-modified mid-enumeration; struct values
-            // are copied so we write back.
-            var keys = new string[_values.Count];
-            int i = 0;
-            foreach (var k in _values.Keys) keys[i++] = k;
-            for (int j = 0; j < keys.Length; j++)
+            // are copied so we write back. The snapshot buffer is reused across frames.
+            var keys = _tickKeys;
+            keys.Clear();
+            foreach (var kv in _values) keys.Add(kv.Key);
+            for (int j = 0; j < keys.Count; j++)
             {
                 var anim = _values[keys[j]];
                 anim.Tick(dt);
                 _values[keys[j]] = anim;
             }
+            keys.Clear();
         }
 
         /// <summary>Clear all tracked animations. Useful for tests.</summary>

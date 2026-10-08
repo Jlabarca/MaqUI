@@ -93,7 +93,15 @@ namespace Maqui
         {
             if (element == null) return;
             if (!_subscribed.Add(handle)) return;
+            Subscribe(handle, element);
+        }
 
+        // Kept out of SubscribeIfNew on purpose: the lambdas below capture `handle`, and the
+        // compiler allocates that closure at METHOD ENTRY — before any early return. Inlined,
+        // every already-subscribed call (one per element update, every frame) paid 32 bytes
+        // for a closure it then threw away.
+        private void Subscribe(int handle, VisualElement element)
+        {
             element.RegisterCallback<PointerEnterEvent>(evt => OnEvent(handle, evt, PointerEventKind.Enter));
             element.RegisterCallback<PointerLeaveEvent>(evt => OnEvent(handle, evt, PointerEventKind.Leave));
             element.RegisterCallback<PointerDownEvent>(evt => OnEvent(handle, evt, PointerEventKind.Down));
