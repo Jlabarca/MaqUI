@@ -57,7 +57,7 @@ namespace Maqui.Components
             // Knob position animates between t=0 (off) and t=1 (on). Ticked by
             // Gui.TickAnimations; the slide is realized as a leading Spacer whose
             // width is the interpolated offset (see ComputeKnobOffset).
-            float t = gui.Animate(key + "-toggle-t", state ? 1f : 0f,
+            float t = gui.Animate(MaquiStrings.Suffixed(key, "-toggle-t"), state ? 1f : 0f,
                 ToggleStiffness, ToggleDamping);
 
             int pillId = gui.PeekNextNodeId();

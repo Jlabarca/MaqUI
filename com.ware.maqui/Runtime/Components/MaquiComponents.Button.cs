@@ -47,7 +47,7 @@ namespace Maqui.Components
                 className: className);
             gui.DrawText(label ?? string.Empty,
                 styled ? default : MaquiTheme.TextPrimary,
-                className: styled ? className + "__label" : null);
+                className: styled ? MaquiStrings.LabelClass(className) : null);
             gui.EndColumn();
             return container.OnClick();
         }

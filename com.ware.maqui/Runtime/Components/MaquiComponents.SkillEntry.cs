@@ -56,13 +56,13 @@ namespace Maqui.Components
 
                         gui.Row(Size.Expand(), Size.Fit(), background: default, alignItems: AlignItems.Center);
                         {
-                            gui.DrawText($"{level} / {maxLevel}", className: levelClassName);
+                            gui.DrawText(MaquiStrings.Pair(level, maxLevel), className: levelClassName);
                             gui.Spacer(Size.Expand());
                             if (showStepper)
                             {
                                 // Skill-down is not a server command, so the − side is
                                 // disabled; + is gated on canLevelUp.
-                                delta = gui.Stepper(key + "-lv", string.Empty,
+                                delta = gui.Stepper(MaquiStrings.Suffixed(key, "-lv"), string.Empty,
                                     buttonClassName: buttonClassName,
                                     canDecrement: false, canIncrement: canLevelUp);
                             }

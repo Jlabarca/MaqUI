@@ -44,7 +44,7 @@ namespace Maqui.Components
                     gui.DrawText(costText, className: costClassName);
 
                 if (showStepper)
-                    delta = gui.Stepper(key + "-st", string.Empty,
+                    delta = gui.Stepper(MaquiStrings.Suffixed(key, "-st"), string.Empty,
                         buttonClassName: buttonClassName,
                         canDecrement: canDecrement, canIncrement: canIncrement);
             }

@@ -36,7 +36,7 @@ namespace Maqui.Components
             Action drawContent)
         {
             // Read pending wheel delta from animations store (Unity adapter writes; v0 alpha).
-            var pendingSlot = key + "-pending-delta";
+            var pendingSlot = MaquiStrings.Suffixed(key, "-pending-delta");
             float delta = gui.Animations.Get(pendingSlot).Target;
             // Consume the delta — set target back to 0 so it doesn't accumulate next frame.
             if (delta != 0f)
@@ -45,7 +45,7 @@ namespace Maqui.Components
             }
 
             // Read current offset (persistent across frames).
-            var offsetSlot = key + "-offset";
+            var offsetSlot = MaquiStrings.Suffixed(key, "-offset");
             float current = gui.Animations.Get(offsetSlot).Target;
             float newOffset = ComputeScrollOffset(current, delta, contentHeight, viewportHeight);
 

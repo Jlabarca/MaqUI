@@ -50,7 +50,7 @@ namespace Maqui.Components
                     bool isActive = i == selected;
                     string cls = isActive ? (activeTabClassName ?? tabClassName) : tabClassName;
                     // Keyed per index so each tab is a stable node with its own hover/press.
-                    if (gui.Button(labels[i] ?? string.Empty, key: $"{key}-tab-{i}", className: cls))
+                    if (gui.Button(labels[i] ?? string.Empty, key: MaquiStrings.Indexed(key, "-tab-", i), className: cls))
                         selected = i;
                 }
             }
@@ -58,7 +58,7 @@ namespace Maqui.Components
 
             if (renderContent != null)
             {
-                using (gui.EnterDataScope($"{key}-body-{selected}"))
+                using (gui.EnterDataScope(MaquiStrings.Indexed(key, "-body-", selected)))
                 {
                     renderContent(selected);
                 }

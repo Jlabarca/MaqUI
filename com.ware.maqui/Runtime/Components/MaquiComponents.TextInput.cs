@@ -26,7 +26,7 @@ namespace Maqui.Components
             // gui.TextInputs keyed by ScopePath+key. We surface the latest
             // typed-text value back to the caller via TextInputs.Get.
             gui.TextInputField(key, text, height);
-            string storeKey = (gui.CurrentScopePath ?? "/") + "/" + (key ?? "text");
+            string storeKey = MaquiStrings.Scoped(gui.CurrentScopePath ?? "/", key ?? "text");
             return gui.TextInputs.Get(storeKey, text ?? string.Empty);
         }
     }

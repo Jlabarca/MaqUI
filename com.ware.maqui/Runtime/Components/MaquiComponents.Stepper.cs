@@ -24,12 +24,12 @@ namespace Maqui.Components
                 // The disabled sides still draw a button (so the row doesn't jump)
                 // but their click is ignored — cheaper and steadier than conditionally
                 // omitting the node, which would change sibling identity.
-                bool minus = gui.Button("−", key: key + "-dec", className: buttonClassName);
+                bool minus = gui.Button("−", key: MaquiStrings.Suffixed(key, "-dec"), className: buttonClassName);
                 if (minus && canDecrement) delta = -1;
 
                 gui.DrawText(valueText ?? string.Empty, className: labelClassName);
 
-                bool plus = gui.Button("+", key: key + "-inc", className: buttonClassName);
+                bool plus = gui.Button("+", key: MaquiStrings.Suffixed(key, "-inc"), className: buttonClassName);
                 if (plus && canIncrement) delta = +1;
             }
             gui.EndRow();

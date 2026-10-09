@@ -24,7 +24,7 @@ namespace Maqui.Components
             // Knob slide animation: t=0 (off, left) to t=1 (on, right).
             // The Unity backend reads this slot on the same frame to position the knob.
             float targetT = state ? 1f : 0f;
-            float t = gui.Animate(key + "-knob-t", targetT);
+            float t = gui.Animate(MaquiStrings.Suffixed(key, "-knob-t"), targetT);
 
             // Knob marker — Unity backend reads (key + "-knob-t") for absolute placement.
             gui.DrawRect(new Color32(245, 245, 250, 255), Size.Pixels(24f), Size.Pixels(24f));

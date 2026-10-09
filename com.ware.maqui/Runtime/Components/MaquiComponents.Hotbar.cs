@@ -86,6 +86,6 @@ namespace Maqui.Components
 
         // RO quickbar labels: slots 0..8 → "1".."9", slot 9 → "0".
         private static string DefaultHotkey(int i) =>
-            i == 9 ? "0" : (i + 1).ToString();
+            i == 9 ? "0" : MaquiStrings.Int(i + 1);
     }
 }

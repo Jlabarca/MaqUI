@@ -40,9 +40,9 @@ namespace Maqui.Components
                     }
                     gui.EndRow();
 
-                    gui.Bar(key + "-hp", hp01, hpText, className: barClassName,
+                    gui.Bar(MaquiStrings.Suffixed(key, "-hp"), hp01, hpText, className: barClassName,
                         fillClassName: hpFillClassName, labelClassName: barLabelClassName, height: 14f);
-                    gui.Bar(key + "-sp", sp01, spText, className: barClassName,
+                    gui.Bar(MaquiStrings.Suffixed(key, "-sp"), sp01, spText, className: barClassName,
                         fillClassName: spFillClassName, labelClassName: barLabelClassName, height: 12f);
                 }
                 gui.EndColumn();

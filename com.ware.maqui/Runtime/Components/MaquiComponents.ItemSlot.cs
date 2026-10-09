@@ -62,7 +62,7 @@ namespace Maqui.Components
                     gui.Icon(iconKey, size - 4f);
                 // Stacks of 1 (or unset) don't draw a count — matches RO.
                 if (count > 1)
-                    gui.DrawText(count.ToString(), className: countClassName);
+                    gui.DrawText(MaquiStrings.Int(count), className: countClassName);
             }
             gui.EndColumn();
 

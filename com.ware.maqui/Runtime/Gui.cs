@@ -371,9 +371,7 @@ namespace Maqui
             float height = Maqui.Components.MaquiTheme.InputHeight)
         {
             int id = NewNodeId();
-            string keyPayload = string.IsNullOrEmpty(key)
-                ? (CurrentScopePath + "/text")
-                : (CurrentScopePath + "/" + key);
+            string keyPayload = MaquiStrings.Scoped(CurrentScopePath, string.IsNullOrEmpty(key) ? "text" : key);
             _frameBuffer.Record(new FrameOp(FrameOpKind.TextInputField, id, CurrentScopePath,
                 a: (float)SizeKind.Pixels, b: 0f,
                 c: (float)SizeKind.Pixels, d: height,
@@ -385,9 +383,7 @@ namespace Maqui
         /// <see cref="TextInputField"/>'s so both stores are addressed identically —
         /// a mismatch here is invisible until a value silently fails to come back.</summary>
         public string InputKey(string key, string fallbackSuffix)
-            => string.IsNullOrEmpty(key)
-                ? (CurrentScopePath + "/" + fallbackSuffix)
-                : (CurrentScopePath + "/" + key);
+            => MaquiStrings.Scoped(CurrentScopePath, string.IsNullOrEmpty(key) ? fallbackSuffix : key);
 
         /// <summary>WL.0: native slider. The backend mints a real UI Toolkit
         /// <c>Slider</c> and routes its value into <see cref="FloatInputs"/> under
